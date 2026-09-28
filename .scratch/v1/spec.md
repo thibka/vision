@@ -43,7 +43,7 @@ Une application locale où le Workspace contient un arbre de Pages, affiché dan
 - **Contenu** : le `content` est le document JSON de BlockNote, stocké en une colonne, traité comme opaque par le module Pages. Pas de table de Blocks.
 - **Ordre** : chaque Page a une `position` parmi ses sœurs, attribuée à la création (à la fin). Le déplacement de Pages (changement de parent ou d'ordre) est hors v1, mais le modèle garde `position` pour pouvoir l'ajouter sans migration lourde.
 - **Invariants** : suppression = tout le sous-arbre, définitivement.
-- **Persistance** : SQLite côté serveur, accès via Drizzle, schéma versionné par migrations. Base dans un fichier local, ignoré par git.
+- **Persistance** : SQLite côté serveur via le module natif `node:sqlite` (`DatabaseSync`), accès en SQL brut (pas d'ORM), schéma versionné par des fichiers de migration `.sql` écrits à la main. Base dans un fichier local, ignoré par git. `node:sqlite` étant expérimental, le flag `--experimental-sqlite` est ajouté aux scripts `dev`/`build`/`start` via `NODE_OPTIONS`.
 - **Suppression** : l'UI demande d'abord le nombre de Sous-pages au module, affiche une confirmation, puis supprime.
 - **Sauvegarde automatique** : enregistrement du contenu après une courte inactivité en frappe (debounce), et à la fermeture ou au changement de Page. Le débit exact est laissé à l'implémentation.
 - **Navigation** : une route par Page, identifiée par son id. La racine affiche la première Page ou l'état vide.
@@ -53,7 +53,7 @@ Une application locale où le Workspace contient un arbre de Pages, affiché dan
 
 ## Testing Decisions
 
-- **Un seul seam** : le module Pages, appelé directement, contre un SQLite en mémoire avec le vrai schéma Drizzle. Pas de mocks.
+- **Un seul seam** : le module Pages, appelé directement, contre un SQLite en mémoire avec le vrai schéma SQL. Pas de mocks.
 - **Un bon test** : ne vérifie que le comportement observable (l'arbre lu, le contenu relu, les erreurs renvoyées), jamais l'implémentation (noms de colonnes, requêtes SQL, algorithme de `position`).
 - **Comportements à couvrir** :
   - une Page créée apparaît sous son parent, à la fin de ses sœurs ;
