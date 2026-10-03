@@ -8,6 +8,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Testing
+
+Pas de TDD sur ce projet. Implémente d'abord, puis écris les tests après coup une fois le comportement stable. Quand un skill (`/implement`, `/tdd`) prescrit le red-green-refactor, ignore cette étape et écris les tests à la fin.
+
 ## Agent skills
 
 ### Issue tracker
