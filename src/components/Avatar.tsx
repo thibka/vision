@@ -3,10 +3,10 @@ export default function Avatar({ children }: { children: React.ReactNode }) {
         <div className="
             w-7 h-7
             rounded-md
-            bg-gray-50
+            bg-avatar-bg
             flex
             items-center justify-center
-            text-gray-700 
+            text-avatar-fg
             font-semibold 
             text-trim
         ">

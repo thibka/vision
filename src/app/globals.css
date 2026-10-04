@@ -10,25 +10,99 @@
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+
+  body {
+    background: var(--color-bg-base);
+    color: var(--color-text-primary);
+  }
+}
+
+/*
+ * Design tokens, 3 niveaux (source : "Nimbus Specs Figma", Pierre / Élevé)
+ *
+ *   1. Palette   --palette-*   valeurs brutes. Pas de utilities Tailwind
+ *                              (hors @theme), donc inutilisables dans le JSX.
+ *   2. Sémantique --color-*    rôle dans l'UI. Noms alignés sur les variables
+ *                              Figma (bg/base -> bg-bg-base). Seul niveau à
+ *                              réassigner pour ajouter un thème.
+ *   3. Composant --color-<composant>-*  alias vers le niveau 2, uniquement
+ *                              quand un composant a un besoin propre.
+ *
+ * Règle : le JSX consomme les niveaux 2 et 3, jamais le niveau 1.
+ * Thème sombre unique pour l'instant (cf. color-scheme plus bas).
+ */
+
+/* Niveau 1 : palette */
+:root {
+  --palette-stone-950: #0b0603;
+  --palette-stone-900: #130d07;
+  --palette-stone-850: #1c160e;
+  --palette-stone-800: #2d251c;
+  --palette-stone-700: #483f34;
+  --palette-stone-500: #9c9082;
+  --palette-stone-300: #c6bcb0;
+  --palette-stone-100: #f5eee7;
+  --palette-stone-50: #fefbf7;
+
+  --palette-amber-900: #33210b;
+  --palette-amber-400: #d6a771;
+  --palette-amber-300: #eaba83;
+  --palette-amber-50: #fff7d8;
+
+  --palette-space-design: #9bbbdd;
+  --palette-space-engineering: #97c4aa;
+  --palette-space-marketing: #d6a8bd;
+  --palette-space-clients: #ccb48c;
+  --palette-space-perso: #bdafd9;
+
+  color-scheme: dark;
 }
 
 @theme {
   --font-sans: system-ui, Arial, sans-serif;
-}
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* Niveau 2 : sémantique */
+  --color-bg-base: var(--palette-stone-950);
+  --color-bg-panel: var(--palette-stone-900);
+  --color-bg-hover: var(--palette-stone-850);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+  --color-border-default: var(--palette-stone-800);
+  --color-border-strong: var(--palette-stone-700);
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+  --color-text-muted: var(--palette-stone-500);
+  --color-text-secondary: var(--palette-stone-300);
+  --color-text-subtle: var(--palette-stone-100);
+  --color-text-primary: var(--palette-stone-50);
+
+  --color-accent-default: var(--palette-amber-400);
+  --color-accent-hover: var(--palette-amber-300);
+  --color-accent-on: var(--color-bg-base);
+
+  --color-selection-bg: var(--palette-amber-900);
+  --color-selection-fg: var(--palette-amber-50);
+
+  --color-space-design: var(--palette-space-design);
+  --color-space-engineering: var(--palette-space-engineering);
+  --color-space-marketing: var(--palette-space-marketing);
+  --color-space-clients: var(--palette-space-clients);
+  --color-space-perso: var(--palette-space-perso);
+
+  /* Absent des specs Figma : état d'erreur des champs, à valider côté design */
+  --color-danger: var(--color-red-700);
+
+  /* Niveau 3 : composants */
+  --color-sidebar-bg: var(--color-bg-base);
+  --color-sidebar-border: var(--color-border-default);
+
+  --color-tab-active: var(--color-accent-default);
+  --color-tab-inactive: var(--color-text-muted);
+
+  --color-input-bg: var(--color-bg-base);
+  --color-input-border: var(--color-border-default);
+  --color-input-border-focus: var(--color-accent-default);
+  --color-input-text: var(--color-text-primary);
+  --color-input-placeholder: var(--color-text-muted);
+
+  --color-avatar-bg: var(--color-accent-default);
+  --color-avatar-fg: var(--color-accent-on);
 }
