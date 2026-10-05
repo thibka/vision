@@ -73,6 +73,7 @@
   --color-text-secondary: var(--palette-stone-300);
   --color-text-subtle: var(--palette-stone-100);
   --color-text-primary: var(--palette-stone-50);
+  --color-text-contrast: var(--palette-stone-950);
 
   --color-accent-default: var(--palette-amber-400);
   --color-accent-hover: var(--palette-amber-300);
@@ -105,4 +106,7 @@
 
   --color-avatar-bg: var(--color-accent-default);
   --color-avatar-fg: var(--color-accent-on);
+
+  --color-button-primary-bg: var(--color-accent-default);
+  --color-button-primary-fg: var(--color-text-contrast);
 }
