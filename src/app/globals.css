@@ -14,25 +14,12 @@
   body {
     background: var(--color-bg-base);
     color: var(--color-text-primary);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
   }
 }
 
-/*
- * Design tokens, 3 niveaux (source : "Nimbus Specs Figma", Pierre / Élevé)
- *
- *   1. Palette   --palette-*   valeurs brutes. Pas de utilities Tailwind
- *                              (hors @theme), donc inutilisables dans le JSX.
- *   2. Sémantique --color-*    rôle dans l'UI. Noms alignés sur les variables
- *                              Figma (bg/base -> bg-bg-base). Seul niveau à
- *                              réassigner pour ajouter un thème.
- *   3. Composant --color-<composant>-*  alias vers le niveau 2, uniquement
- *                              quand un composant a un besoin propre.
- *
- * Règle : le JSX consomme les niveaux 2 et 3, jamais le niveau 1.
- * Thème sombre unique pour l'instant (cf. color-scheme plus bas).
- */
-
-/* Niveau 1 : palette */
+/* Level 1: palette */
 :root {
   --palette-stone-950: #0b0603;
   --palette-stone-900: #130d07;
@@ -61,7 +48,7 @@
 @theme {
   --font-sans: system-ui, Arial, sans-serif;
 
-  /* Niveau 2 : sémantique */
+  /* Level 2 : semantic */
   --color-bg-base: var(--palette-stone-950);
   --color-bg-panel: var(--palette-stone-900);
   --color-bg-hover: var(--palette-stone-850);
@@ -88,10 +75,9 @@
   --color-space-clients: var(--palette-space-clients);
   --color-space-perso: var(--palette-space-perso);
 
-  /* Absent des specs Figma : état d'erreur des champs, à valider côté design */
   --color-danger: var(--color-red-700);
 
-  /* Niveau 3 : composants */
+  /* Level 3 : components */
   --color-sidebar-bg: var(--color-bg-base);
   --color-sidebar-border: var(--color-border-default);
 

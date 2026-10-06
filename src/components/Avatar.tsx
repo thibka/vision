@@ -7,7 +7,7 @@ export default function Avatar({ children }: { children: React.ReactNode }) {
             flex
             items-center justify-center
             text-avatar-fg
-            font-semibold 
+            font-semibold
             text-trim
         ">
             { children }
