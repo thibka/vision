@@ -1,6 +1,9 @@
+import { auth } from '@clerk/nextjs/server';
 import SideBar from '@/components/Sidebar';
 
-export default function Home() {
+export default async function Home() {
+    await auth.protect();
+
     return (
         <div className="flex h-full">
             <SideBar />

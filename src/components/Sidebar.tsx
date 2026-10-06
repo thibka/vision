@@ -4,6 +4,7 @@ import InputSearch from '@/components/InputSearch';
 import { Button } from '@/components/Button';
 import { PlusIcon } from "@radix-ui/react-icons"
 import ButtonIcon from '@/components/ButtonIcon';
+import { UserButton } from '@clerk/nextjs';
 
 export default function Sidebar() {
     return (
@@ -11,6 +12,9 @@ export default function Sidebar() {
             <div className="flex items-center gap-2 mb-4 mt-4 px-4">
                 <Avatar>N</Avatar>
                 <span className="text-sm font-semibold">Nimbus</span>
+                <div className="ml-auto flex items-center">
+                    <UserButton />
+                </div>
             </div>
 
             <Tabs defaultValue="tab1" className="flex flex-col flex-1 min-h-0">
