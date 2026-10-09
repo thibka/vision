@@ -5,8 +5,14 @@ Un clone de Notion : un espace de prise de notes organisé en pages imbriquées,
 ## Language
 
 **Workspace**:
-L'espace racine qui contient toutes les Pages d'un utilisateur.
-_Avoid_: Compte, espace de travail
+Un conteneur de Pages appartenant à un utilisateur. Un utilisateur a toujours au moins un Workspace, et peut en avoir plusieurs. Un Workspace est renommable ; il ne peut être supprimé que s'il en reste un autre.
+_Avoid_: Space, Espace, Compte, espace de travail
+
+**Workspace par défaut**:
+Le premier Workspace d'un utilisateur, créé à sa première visite authentifiée. Nommé « <Prénom>'s workspace » d'après le prénom de l'utilisateur, ou « Workspace 1 » si le prénom est absent ou vide. Le nom est copié à la création et ne suit pas les changements de profil.
+
+**Workspace courant**:
+Le Workspace affiché à l'écran, identifié par l'URL. Son nom s'affiche en haut de la sidebar.
 
 **Page**:
 Un document identifié, avec un titre, positionné dans l'arbre sous un Workspace ou sous une autre Page.

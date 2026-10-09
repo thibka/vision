@@ -1,7 +1,7 @@
 export default function Avatar({ children }: { children: React.ReactNode }) {
     return (
         <div className="
-            w-7 h-7
+            w-7 h-7 shrink-0
             rounded-md
             bg-avatar-bg
             flex

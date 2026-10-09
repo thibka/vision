@@ -6,12 +6,12 @@ import { PlusIcon } from "@radix-ui/react-icons"
 import ButtonIcon from '@/components/ButtonIcon';
 import { UserButton } from '@clerk/nextjs';
 
-export default function Sidebar() {
+export default function Sidebar({ workspaceName }: { workspaceName: string }) {
     return (
         <aside aria-label="Sidebar" className="flex flex-col w-65 h-full border-r border-sidebar-border bg-sidebar-bg">
             <div className="flex items-center gap-2 mb-4 mt-4 px-4">
-                <Avatar>N</Avatar>
-                <span className="text-sm font-semibold">Nimbus</span>
+                <Avatar>{workspaceName.charAt(0).toUpperCase()}</Avatar>
+                <span className="text-sm font-semibold truncate min-w-0">{workspaceName}</span>
                 <div className="ml-auto flex items-center">
                     <UserButton />
                 </div>

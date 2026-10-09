@@ -1,15 +1,13 @@
-import { auth } from '@clerk/nextjs/server';
-import SideBar from '@/components/Sidebar';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
+import { workspaces } from '@/lib/workspaces';
 
 export default async function Home() {
-    await auth.protect();
-
-    return (
-        <div className="flex h-full">
-            <SideBar />
-            <main className="w-4/5 p-12" aria-label="Main content">
-                <p className="text-2xl">Hello</p>
-            </main>
-        </div>
+    const { userId } = await auth.protect();
+    const workspace = await workspaces().getOrCreateDefault(
+        userId,
+        async () => (await currentUser())?.firstName,
     );
+
+    redirect(`/${workspace.id}`);
 }
