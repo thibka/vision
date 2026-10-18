@@ -34,3 +34,11 @@ export async function loadPage(workspaceId: string, pageId: string) {
     if (!page) notFound();
     return page;
 }
+
+// Reads the Contenu of the Page of the URL, or renders the 404 when it isn't a Page of that Workspace.
+export async function loadPageContent(workspaceId: string, pageId: string) {
+    const { userId } = await auth.protect();
+    const content = await pages().getContent(userId, workspaceId, pageId);
+    if (!content) notFound();
+    return content;
+}

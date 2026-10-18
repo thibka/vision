@@ -29,6 +29,24 @@ export async function renamePage(
     revalidatePath('/[workspaceId]', 'layout');
 }
 
+// The Contenu comes from the client as is: the Pages module refuses it unless it is a small enough array
+export async function savePageContent(
+    workspaceId: string,
+    pageId: string,
+    content: unknown,
+) {
+    const { userId } = await auth.protect();
+    const saved = await pages().saveContent(
+        userId,
+        workspaceId,
+        pageId,
+        content,
+    );
+    if (!saved) notFound();
+
+    // No revalidation: the sidebar doesn't show the Contenu, so it shouldn't reload on each save
+}
+
 // `isOpen` comes from the client, but it only decides where to land: the delete still checks access
 export async function deletePage(
     workspaceId: string,

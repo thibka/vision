@@ -6,6 +6,8 @@
 - Corbeille avec restauration
 - Lien de sous-page dans le contenu (bloc BlockNote personnalisé)
 - Stockage Block par ligne en base
+- Upload de fichiers pour les Blocks médias (image, vidéo, audio, fichier)
+- Indicateur d'enregistrement du Contenu
 - Recherche
 - Icônes et couvertures de Page
 - Export

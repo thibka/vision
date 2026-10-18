@@ -16,6 +16,12 @@ export type Page = {
     title: string;
 };
 
+/** The Contenu of a Page: BlockNote's document of Blocks, stored as is (ADR 0002) */
+export type PageContent = unknown[];
+
+/** 1 Mo, counted in bytes of the Contenu serialized as JSON */
+export const MAX_PAGE_CONTENT_BYTES = 1024 * 1024;
+
 export function createPagesModule(db: Database) {
     const ownsWorkspace = db
         .prepare<
@@ -36,6 +42,20 @@ export function createPagesModule(db: Database) {
     // Updates nothing unless the Page is in that Workspace and the Workspace belongs to the user
     const updateTitle = db.prepare(
         `UPDATE pages SET title = ?
+         WHERE id = ? AND workspace_id = ?
+           AND workspace_id IN (SELECT id FROM workspaces WHERE user_id = ?)`,
+    );
+    // No row for a Page the user can't see; a NULL content for a Page never written
+    const selectOwnedContent = db
+        .prepare<[string, string, string], string | null>(
+            `SELECT p.content
+             FROM pages p JOIN workspaces w ON w.id = p.workspace_id
+             WHERE w.user_id = ? AND p.workspace_id = ? AND p.id = ?`,
+        )
+        .pluck();
+    // Updates nothing unless the Page is in that Workspace and the Workspace belongs to the user
+    const updateContent = db.prepare(
+        `UPDATE pages SET content = ?
          WHERE id = ? AND workspace_id = ?
            AND workspace_id IN (SELECT id FROM workspaces WHERE user_id = ?)`,
     );
@@ -138,6 +158,53 @@ export function createPagesModule(db: Database) {
             );
             if (changes === 0) return null;
             return selectOwned.get(userId, workspaceId, pageId) ?? null;
+        },
+
+        /**
+         * Returns the Contenu of the Page, empty for a Page never written.
+         * Returns null for a missing Page, for a Page of another Workspace than `workspaceId`,
+         * and for someone else's Workspace, without distinction.
+         */
+        async getContent(
+            userId: string,
+            workspaceId: string,
+            pageId: string,
+        ): Promise<PageContent | null> {
+            const content = selectOwnedContent.get(userId, workspaceId, pageId);
+            if (content === undefined) return null;
+            return content === null ? [] : JSON.parse(content);
+        },
+
+        /**
+         * Replaces the whole Contenu of the Page, leaving its title alone. The Blocks are not
+         * checked against BlockNote's schema, so the server doesn't depend on its version.
+         * Returns false for a missing Page, for a Page of another Workspace than `workspaceId`,
+         * and for someone else's Workspace, without distinction.
+         * Throws when the Contenu is not an array, or is over `MAX_PAGE_CONTENT_BYTES` once
+         * serialized.
+         */
+        async saveContent(
+            userId: string,
+            workspaceId: string,
+            pageId: string,
+            content: unknown,
+        ): Promise<boolean> {
+            if (!Array.isArray(content)) {
+                throw new Error('The Contenu of a Page must be an array of Blocks');
+            }
+            const serialized = JSON.stringify(content);
+            if (Buffer.byteLength(serialized, 'utf8') > MAX_PAGE_CONTENT_BYTES) {
+                throw new Error(
+                    `The Contenu of a Page cannot be larger than ${MAX_PAGE_CONTENT_BYTES} bytes`,
+                );
+            }
+            const { changes } = updateContent.run(
+                serialized,
+                pageId,
+                workspaceId,
+                userId,
+            );
+            return changes === 1;
         },
 
         /**

@@ -28,6 +28,10 @@ Le titre que reçoit toute Page à sa création, qu'elle soit créée par l'util
 Une Page dont le parent est une autre Page.
 _Avoid_: Page enfant, dossier
 
+**Contenu**:
+Le document de Blocks d'une Page, affiché sous son titre. Une Page créée a un Contenu vide. Le Contenu est durable : on le retrouve tel qu'on l'a laissé en revenant sur la Page, y compris après un rechargement.
+_Avoid_: Corps, body, document
+
 **Block**:
-Une unité de contenu d'une Page, au sens de BlockNote (texte, titre, liste, to-do, code). Le contenu d'une Page est le document de Blocks produit par BlockNote.
+Une unité du Contenu d'une Page, au sens de BlockNote : par exemple texte, titre, liste, to-do, code, tableau, ou média intégré par URL.
 _Avoid_: Élément, section, nœud
