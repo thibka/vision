@@ -1,6 +1,12 @@
 import type { Database } from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { getDatabase } from './db';
+import {
+    DEFAULT_PAGE_TITLE,
+    MAX_PAGE_TITLE_LENGTH,
+    normalizePageTitle,
+    pageTitleLength,
+} from './page-title';
 
 export type Page = {
     id: string;
@@ -9,9 +15,6 @@ export type Page = {
     parentId: string | null;
     title: string;
 };
-
-/** The Titre par défaut, copied into every Page at its creation */
-export const DEFAULT_PAGE_TITLE = 'New page';
 
 export function createPagesModule(db: Database) {
     const ownsWorkspace = db
@@ -29,6 +32,12 @@ export function createPagesModule(db: Database) {
         `SELECT p.id, p.workspace_id AS workspaceId, p.parent_id AS parentId, p.title
          FROM pages p JOIN workspaces w ON w.id = p.workspace_id
          WHERE w.user_id = ? AND p.workspace_id = ? AND p.id = ?`,
+    );
+    // Updates nothing unless the Page is in that Workspace and the Workspace belongs to the user
+    const updateTitle = db.prepare(
+        `UPDATE pages SET title = ?
+         WHERE id = ? AND workspace_id = ?
+           AND workspace_id IN (SELECT id FROM workspaces WHERE user_id = ?)`,
     );
     const selectByWorkspace = db.prepare<[string], Page>(
         `SELECT id, workspace_id AS workspaceId, parent_id AS parentId, title
@@ -69,6 +78,34 @@ export function createPagesModule(db: Database) {
             workspaceId: string,
             pageId: string,
         ): Promise<Page | null> {
+            return selectOwned.get(userId, workspaceId, pageId) ?? null;
+        },
+
+        /**
+         * Renames the Page, trimmed, with the Titre par défaut when the title is left empty.
+         * Returns null for a missing Page, for a Page of another Workspace than `workspaceId`,
+         * and for someone else's Workspace, without distinction.
+         * Throws when the trimmed title is longer than `MAX_PAGE_TITLE_LENGTH` characters.
+         */
+        async rename(
+            userId: string,
+            workspaceId: string,
+            pageId: string,
+            title: string,
+        ): Promise<Page | null> {
+            const normalized = normalizePageTitle(title);
+            if (pageTitleLength(normalized) > MAX_PAGE_TITLE_LENGTH) {
+                throw new Error(
+                    `A Page title cannot be longer than ${MAX_PAGE_TITLE_LENGTH} characters`,
+                );
+            }
+            const { changes } = updateTitle.run(
+                normalized,
+                pageId,
+                workspaceId,
+                userId,
+            );
+            if (changes === 0) return null;
             return selectOwned.get(userId, workspaceId, pageId) ?? null;
         },
 

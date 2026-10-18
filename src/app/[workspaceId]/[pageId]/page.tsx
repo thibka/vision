@@ -1,5 +1,7 @@
 import { Editor } from '@/components/DynamicEditor';
+import PageTitle from '@/components/PageTitle';
 import { loadPage } from '@/lib/current-workspace';
+import { renamePage } from '../actions';
 
 export default async function PageRoute({
     params,
@@ -9,7 +11,12 @@ export default async function PageRoute({
 
     return (
         <main className="w-4/5" aria-label="Main content">
-            <h1 className="px-12 py-10 text-4xl font-bold">{page.title}</h1>
+            {/* Keyed by Page, so the title field starts afresh on each Page */}
+            <PageTitle
+                key={page.id}
+                title={page.title}
+                renameAction={renamePage.bind(null, workspaceId, page.id)}
+            />
             <Editor />
         </main>
     );

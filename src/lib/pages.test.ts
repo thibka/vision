@@ -225,6 +225,171 @@ describe('list', () => {
     });
 });
 
+describe('rename', () => {
+    it('returns the renamed Page, and get and list show the new title', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const page = await pages.createAtRoot('user_a', workspace.id);
+
+        const renamed = await pages.rename(
+            'user_a',
+            workspace.id,
+            page!.id,
+            'Roadmap',
+        );
+
+        expect(renamed).toEqual({ ...page, title: 'Roadmap' });
+        expect(await pages.get('user_a', workspace.id, page!.id)).toEqual(renamed);
+        expect(await pages.list('user_a', workspace.id)).toContainEqual(renamed);
+    });
+
+    it('renames only the asked Page', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const initial = await initialPage(db, 'user_a', workspace.id);
+        const page = await pages.createAtRoot('user_a', workspace.id);
+
+        await pages.rename('user_a', workspace.id, page!.id, 'Roadmap');
+
+        expect(await pages.list('user_a', workspace.id)).toEqual([
+            initial,
+            { ...page, title: 'Roadmap' },
+        ]);
+    });
+
+    it('trims the spaces around the title', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const page = await initialPage(db, 'user_a', workspace.id);
+
+        const renamed = await pages.rename(
+            'user_a',
+            workspace.id,
+            page.id,
+            '  Road  map \t',
+        );
+
+        expect(renamed!.title).toBe('Road  map');
+    });
+
+    it.each(['', '   '])(
+        'gives the "New page" title back for an empty title (%j)',
+        async (title) => {
+            const db = open();
+            const pages = createPagesModule(db);
+            const workspace = await defaultWorkspace(db, 'user_a');
+            const page = await initialPage(db, 'user_a', workspace.id);
+            await pages.rename('user_a', workspace.id, page.id, 'Roadmap');
+
+            const renamed = await pages.rename(
+                'user_a',
+                workspace.id,
+                page.id,
+                title,
+            );
+
+            expect(renamed!.title).toBe('New page');
+            expect(
+                (await pages.get('user_a', workspace.id, page.id))!.title,
+            ).toBe('New page');
+        },
+    );
+
+    it('accepts a title of 200 characters, counted in characters', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const page = await initialPage(db, 'user_a', workspace.id);
+        // 200 characters, but 400 UTF-16 units and 800 bytes
+        const title = '😀'.repeat(200);
+
+        const renamed = await pages.rename('user_a', workspace.id, page.id, title);
+
+        expect(renamed!.title).toBe(title);
+    });
+
+    it('accepts a title that is 200 characters once trimmed', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const page = await initialPage(db, 'user_a', workspace.id);
+
+        const renamed = await pages.rename(
+            'user_a',
+            workspace.id,
+            page.id,
+            ` ${'a'.repeat(200)} `,
+        );
+
+        expect(renamed!.title).toBe('a'.repeat(200));
+    });
+
+    it('throws for a title of 201 characters, and leaves the title unchanged', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const page = await initialPage(db, 'user_a', workspace.id);
+
+        await expect(
+            pages.rename('user_a', workspace.id, page.id, 'a'.repeat(201)),
+        ).rejects.toThrow();
+        expect(await pages.get('user_a', workspace.id, page.id)).toEqual(page);
+    });
+
+    it('returns null for a Page that does not exist', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const initial = await initialPage(db, 'user_a', workspace.id);
+
+        expect(
+            await pages.rename('user_a', workspace.id, 'missing', 'Roadmap'),
+        ).toBeNull();
+        expect(await pages.list('user_a', workspace.id)).toEqual([initial]);
+    });
+
+    it('returns null for a Page asked with the wrong Workspace, without renaming it', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const other = await secondWorkspace(db, 'user_a');
+        const page = await initialPage(db, 'user_a', workspace.id);
+
+        expect(
+            await pages.rename('user_a', other.id, page.id, 'Roadmap'),
+        ).toBeNull();
+        expect(await pages.get('user_a', workspace.id, page.id)).toEqual(page);
+    });
+
+    it("returns null for a Page in another user's Workspace, without renaming it", async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const page = await initialPage(db, 'user_a', workspace.id);
+
+        expect(
+            await pages.rename('user_b', workspace.id, page.id, 'Roadmap'),
+        ).toBeNull();
+        expect(await pages.get('user_a', workspace.id, page.id)).toEqual(page);
+    });
+
+    it('returns null when another user renames the Page with their own Workspace', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspaceA = await defaultWorkspace(db, 'user_a');
+        const workspaceB = await defaultWorkspace(db, 'user_b');
+        const page = await initialPage(db, 'user_a', workspaceA.id);
+
+        expect(
+            await pages.rename('user_b', workspaceB.id, page.id, 'Roadmap'),
+        ).toBeNull();
+        expect(await pages.get('user_a', workspaceA.id, page.id)).toEqual(page);
+    });
+});
+
 describe('persistence', () => {
     it('keeps Pages after the database is closed and reopened', async () => {
         const before = open();
@@ -240,5 +405,23 @@ describe('persistence', () => {
 
         expect(await pages.list('user_a', workspace.id)).toEqual([initial, page]);
         expect(await pages.get('user_a', workspace.id, page!.id)).toEqual(page);
+    });
+
+    it('keeps a new title after the database is closed and reopened', async () => {
+        const before = open();
+        const workspace = await defaultWorkspace(before, 'user_a');
+        const page = await initialPage(before, 'user_a', workspace.id);
+        const renamed = await createPagesModule(before).rename(
+            'user_a',
+            workspace.id,
+            page.id,
+            'Roadmap',
+        );
+        before.close();
+
+        const pages = createPagesModule(open());
+
+        expect(await pages.get('user_a', workspace.id, page.id)).toEqual(renamed);
+        expect(await pages.list('user_a', workspace.id)).toEqual([renamed]);
     });
 });
