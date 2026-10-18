@@ -57,3 +57,15 @@ export async function createWorkspace() {
     revalidatePath('/[workspaceId]', 'layout');
     redirect(`/${workspace.id}`);
 }
+
+// `isCurrent` comes from the client, but it only decides where to land: the delete still checks access
+export async function deleteWorkspace(workspaceId: string, isCurrent: boolean) {
+    const { userId } = await auth.protect();
+    // False for a Workspace already deleted, e.g. from another tab, or for the last one: nothing to do
+    await workspaces().delete(userId, workspaceId);
+
+    // The sidebar lives in the layout, which a navigation alone would not re-render
+    revalidatePath('/[workspaceId]', 'layout');
+    // The home route leads to the oldest Workspace left, then to its oldest Page
+    if (isCurrent) redirect('/');
+}

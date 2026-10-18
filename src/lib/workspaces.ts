@@ -32,6 +32,17 @@ export function createWorkspacesModule(db: Database) {
         `INSERT INTO pages (id, workspace_id, parent_id, title, created_at)
          VALUES (?, ?, NULL, ?, ?)`,
     );
+    const hasOther = db
+        .prepare<
+            [string, string],
+            number
+        >('SELECT 1 FROM workspaces WHERE user_id = ? AND id <> ? LIMIT 1')
+        .pluck();
+    // One statement: the parent_id foreign key of Sous-pages is checked at its end, whatever the row order
+    const deletePages = db.prepare('DELETE FROM pages WHERE workspace_id = ?');
+    const deleteOwned = db.prepare(
+        'DELETE FROM workspaces WHERE id = ? AND user_id = ?',
+    );
 
     // A Workspace always has at least one Page: it is created with one, in the same transaction
     const insertWorkspaceWithPage = db.transaction(
@@ -53,6 +64,19 @@ export function createWorkspacesModule(db: Database) {
     const createDefaultIfNone = db.transaction(
         (userId: string, name: string): Workspace =>
             selectFirst.get(userId) ?? insertWorkspaceWithPage(userId, name),
+    );
+
+    // A user always has at least one Workspace: checked under the write lock, so two concurrent
+    // deletes can't remove the last two
+    const deleteUnlessLast = db.transaction(
+        (userId: string, workspaceId: string): boolean => {
+            if (!selectOwned.get(userId, workspaceId)) return false;
+            if (!hasOther.get(userId, workspaceId)) return false;
+
+            deletePages.run(workspaceId);
+            deleteOwned.run(workspaceId, userId);
+            return true;
+        },
     );
 
     return {
@@ -96,6 +120,15 @@ export function createWorkspacesModule(db: Database) {
             workspaceId: string,
         ): Promise<Workspace | null> {
             return selectOwned.get(userId, workspaceId) ?? null;
+        },
+
+        /**
+         * Deletes the Workspace and all its Pages for good, as long as the user has another one.
+         * Returns false for a missing Workspace, for someone else's and for the user's last one,
+         * without distinction.
+         */
+        async delete(userId: string, workspaceId: string): Promise<boolean> {
+            return deleteUnlessLast.immediate(userId, workspaceId);
         },
     };
 }

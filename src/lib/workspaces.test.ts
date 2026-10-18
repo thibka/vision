@@ -45,6 +45,16 @@ function insertWorkspace(
     return workspace;
 }
 
+// Inserts a Sous-page directly: the Pages module can't create one yet
+function insertSubPage(db: Database, workspaceId: string, parentId: string) {
+    const id = `sub-of-${parentId}`;
+    db.prepare(
+        `INSERT INTO pages (id, workspace_id, parent_id, title, created_at)
+         VALUES (?, ?, ?, 'Sub-page', ?)`,
+    ).run(id, workspaceId, parentId, new Date().toISOString());
+    return id;
+}
+
 const firstName = (value: string | null | undefined) => async () => value;
 
 beforeEach(() => {
@@ -482,6 +492,154 @@ describe('list', () => {
     });
 });
 
+describe('delete', () => {
+    it('deletes the Workspace when the user has another one', async () => {
+        const workspaces = createWorkspacesModule(open());
+        const first = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+        const second = await workspaces.create('user_a', firstName('Thibaut'));
+
+        expect(await workspaces.delete('user_a', second.id)).toBe(true);
+        expect(await workspaces.get('user_a', second.id)).toBeNull();
+        expect(await workspaces.list('user_a')).toEqual([first]);
+    });
+
+    it('deletes all its Pages, Sous-pages included', async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        const pages = createPagesModule(db);
+        await workspaces.getOrCreateDefault('user_a', firstName('Thibaut'));
+        const workspace = await workspaces.create('user_a', firstName('Thibaut'));
+        const [initial] = (await pages.list('user_a', workspace.id))!;
+        const other = (await pages.createAtRoot('user_a', workspace.id))!;
+        const sub = insertSubPage(db, workspace.id, initial.id);
+        const subSub = insertSubPage(db, workspace.id, sub);
+
+        expect(await workspaces.delete('user_a', workspace.id)).toBe(true);
+        for (const pageId of [initial.id, other.id, sub, subSub]) {
+            expect(await pages.get('user_a', workspace.id, pageId)).toBeNull();
+        }
+        expect(await pages.list('user_a', workspace.id)).toBeNull();
+    });
+
+    it("leaves the user's other Workspaces and their Pages intact", async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        const pages = createPagesModule(db);
+        const first = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+        const doomed = await workspaces.create('user_a', firstName('Thibaut'));
+        const third = await workspaces.create('user_a', firstName('Tibo'));
+        await pages.createAtRoot('user_a', third.id);
+        const firstPages = await pages.list('user_a', first.id);
+        const thirdPages = await pages.list('user_a', third.id);
+
+        await workspaces.delete('user_a', doomed.id);
+
+        expect(await workspaces.list('user_a')).toEqual([first, third]);
+        expect(await pages.list('user_a', first.id)).toEqual(firstPages);
+        expect(await pages.list('user_a', third.id)).toEqual(thirdPages);
+    });
+
+    it("returns false for the user's last Workspace and deletes nothing", async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        const pages = createPagesModule(db);
+        const workspace = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+        const before = await pages.list('user_a', workspace.id);
+
+        expect(await workspaces.delete('user_a', workspace.id)).toBe(false);
+        expect(await workspaces.list('user_a')).toEqual([workspace]);
+        expect(await pages.list('user_a', workspace.id)).toEqual(before);
+    });
+
+    it('returns false for a Workspace already deleted', async () => {
+        const workspaces = createWorkspacesModule(open());
+        const first = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+        const second = await workspaces.create('user_a', firstName('Thibaut'));
+        const third = await workspaces.create('user_a', firstName('Thibaut'));
+        await workspaces.delete('user_a', second.id);
+
+        expect(await workspaces.delete('user_a', second.id)).toBe(false);
+        expect(await workspaces.list('user_a')).toEqual([first, third]);
+    });
+
+    it('returns false for a Workspace that does not exist', async () => {
+        const workspaces = createWorkspacesModule(open());
+        const first = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+        const second = await workspaces.create('user_a', firstName('Thibaut'));
+
+        expect(await workspaces.delete('user_a', 'missing')).toBe(false);
+        expect(await workspaces.list('user_a')).toEqual([first, second]);
+    });
+
+    it("returns false for another user's Workspace and leaves it intact", async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        const pages = createPagesModule(db);
+        // The caller has several Workspaces, so only ownership stops the delete
+        const mine = await workspaces.getOrCreateDefault('user_a', firstName('Ada'));
+        const alsoMine = await workspaces.create('user_a', firstName('Ada'));
+        const theirs = await workspaces.getOrCreateDefault('user_b', firstName('Bob'));
+        const theirOther = await workspaces.create('user_b', firstName('Bob'));
+        const theirPages = await pages.list('user_b', theirs.id);
+
+        expect(await workspaces.delete('user_a', theirs.id)).toBe(false);
+        expect(await workspaces.list('user_b')).toEqual([theirs, theirOther]);
+        expect(await pages.list('user_b', theirs.id)).toEqual(theirPages);
+        expect(await workspaces.list('user_a')).toEqual([mine, alsoMine]);
+    });
+
+    it('refuses to delete the Workspace left by a delete from another connection', async () => {
+        const db = open();
+        const one = createWorkspacesModule(db);
+        const other = createWorkspacesModule(open());
+        const first = await one.getOrCreateDefault('user_a', firstName('Thibaut'));
+        const second = await one.create('user_a', firstName('Thibaut'));
+
+        const results = await Promise.all([
+            one.delete('user_a', first.id),
+            other.delete('user_a', second.id),
+        ]);
+
+        expect(results.filter(Boolean)).toHaveLength(1);
+        expect(countWorkspaces(db, 'user_a')).toBe(1);
+    });
+
+    it('deletes the first-created Workspace, after which getOrCreateDefault returns the oldest left', async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        const first = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+        const second = await workspaces.create('user_a', firstName('Tibo'));
+        await workspaces.create('user_a', firstName('Tibo'));
+
+        expect(await workspaces.delete('user_a', first.id)).toBe(true);
+
+        const loadFirstName = vi.fn(firstName('Thibaut'));
+        expect(
+            await workspaces.getOrCreateDefault('user_a', loadFirstName),
+        ).toEqual(second);
+        expect(loadFirstName).not.toHaveBeenCalled();
+        expect(countWorkspaces(db, 'user_a')).toBe(2);
+    });
+});
+
 describe('persistence', () => {
     it('keeps Workspaces after the database is closed and reopened', async () => {
         const before = open();
@@ -516,5 +674,35 @@ describe('persistence', () => {
 
         expect(await workspaces.get('user_a', created.id)).toEqual(created);
         expect(await workspaces.list('user_a')).toEqual([first, created]);
+    });
+
+    it('keeps a deletion after the database is closed and reopened', async () => {
+        const before = open();
+        const beforeWorkspaces = createWorkspacesModule(before);
+        const first = await beforeWorkspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+        const deleted = await beforeWorkspaces.create(
+            'user_a',
+            firstName('Thibaut'),
+        );
+        const [deletedPage] = (await createPagesModule(before).list(
+            'user_a',
+            deleted.id,
+        ))!;
+        await beforeWorkspaces.delete('user_a', deleted.id);
+        before.close();
+
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        const pages = createPagesModule(db);
+
+        expect(await workspaces.get('user_a', deleted.id)).toBeNull();
+        expect(await workspaces.list('user_a')).toEqual([first]);
+        expect(await pages.list('user_a', deleted.id)).toBeNull();
+        expect(
+            await pages.get('user_a', deleted.id, deletedPage.id),
+        ).toBeNull();
     });
 });

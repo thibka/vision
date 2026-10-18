@@ -13,6 +13,7 @@ export default function Sidebar({
     createPageAction,
     deletePageAction,
     createWorkspaceAction,
+    deleteWorkspaceAction,
 }: {
     currentWorkspace: Workspace;
     workspaces: Workspace[];
@@ -20,6 +21,7 @@ export default function Sidebar({
     createPageAction: () => Promise<void>;
     deletePageAction: (pageId: string, isOpen: boolean) => Promise<void>;
     createWorkspaceAction: () => Promise<void>;
+    deleteWorkspaceAction: (workspaceId: string, isCurrent: boolean) => Promise<void>;
 }) {
     return (
         <aside aria-label="Sidebar" className="flex flex-col w-65 h-full border-r border-sidebar-border bg-sidebar-bg">
@@ -46,6 +48,7 @@ export default function Sidebar({
                         workspaces={workspaces}
                         currentWorkspaceId={currentWorkspace.id}
                         createWorkspaceAction={createWorkspaceAction}
+                        deleteWorkspaceAction={deleteWorkspaceAction}
                     />
                 </TabsContent>
                 {/* Pages tab */}
