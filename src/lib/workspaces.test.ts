@@ -24,6 +24,19 @@ function countWorkspaces(db: Database, userId: string) {
         .get(userId);
 }
 
+// No operation creates a second Workspace yet: insert one directly, with the given creation date
+function insertWorkspace(
+    db: Database,
+    userId: string,
+    workspace: { id: string; name: string },
+    createdAt: string,
+) {
+    db.prepare(
+        'INSERT INTO workspaces (id, user_id, name, created_at) VALUES (?, ?, ?, ?)',
+    ).run(workspace.id, userId, workspace.name, createdAt);
+    return workspace;
+}
+
 const firstName = (value: string | null | undefined) => async () => value;
 
 beforeEach(() => {
@@ -156,11 +169,12 @@ describe('getOrCreateDefault', () => {
             'user_a',
             firstName('Thibaut'),
         );
-        // No operation creates a second Workspace yet: insert one directly, dated before the other
-        db.prepare(
-            'INSERT INTO workspaces (id, user_id, name, created_at) VALUES (?, ?, ?, ?)',
-        ).run('older', 'user_a', 'Side projects', '2020-01-01T00:00:00.000Z');
-        const older = { id: 'older', name: 'Side projects' };
+        const older = insertWorkspace(
+            db,
+            'user_a',
+            { id: 'older', name: 'Side projects' },
+            '2020-01-01T00:00:00.000Z',
+        );
 
         expect(await workspaces.get('user_a', 'older')).toEqual(older);
         expect(await workspaces.get('user_a', recent.id)).toEqual(recent);
@@ -186,6 +200,49 @@ describe('get', () => {
         );
 
         expect(await workspaces.get('user_b', workspace.id)).toBeNull();
+    });
+});
+
+describe('list', () => {
+    it('returns an empty list for a user who has no Workspace', async () => {
+        const workspaces = createWorkspacesModule(open());
+
+        expect(await workspaces.list('user_a')).toEqual([]);
+    });
+
+    it("lists all the user's Workspaces, oldest first", async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        const first = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+        // Inserted out of order, both dated after the first
+        const third = insertWorkspace(
+            db,
+            'user_a',
+            { id: 'third', name: 'Clients' },
+            '2999-01-02T00:00:00.000Z',
+        );
+        const second = insertWorkspace(
+            db,
+            'user_a',
+            { id: 'second', name: 'Side projects' },
+            '2999-01-01T00:00:00.000Z',
+        );
+
+        expect(await workspaces.list('user_a')).toEqual([first, second, third]);
+    });
+
+    it("leaves out other users' Workspaces", async () => {
+        const workspaces = createWorkspacesModule(open());
+        const mine = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Ada'),
+        );
+        await workspaces.getOrCreateDefault('user_b', firstName('Bob'));
+
+        expect(await workspaces.list('user_a')).toEqual([mine]);
     });
 });
 

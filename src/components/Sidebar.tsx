@@ -1,53 +1,47 @@
 import Avatar from '@/components/Avatar';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/Tabs';
-import InputSearch from '@/components/InputSearch';
 import SidebarPages from '@/components/SidebarPages';
-import { Button } from '@/components/Button';
-import { PlusIcon } from "@radix-ui/react-icons"
-import ButtonIcon from '@/components/ButtonIcon';
+import SidebarWorkspaces from '@/components/SidebarWorkspaces';
 import { UserButton } from '@clerk/nextjs';
 import type { Page } from '@/lib/pages';
+import type { Workspace } from '@/lib/workspaces';
 
 export default function Sidebar({
-    workspaceName,
+    currentWorkspace,
+    workspaces,
     pages,
     createPageAction,
 }: {
-    workspaceName: string;
+    currentWorkspace: Workspace;
+    workspaces: Workspace[];
     pages: Page[];
     createPageAction: () => Promise<void>;
 }) {
     return (
         <aside aria-label="Sidebar" className="flex flex-col w-65 h-full border-r border-sidebar-border bg-sidebar-bg">
             <div className="flex items-center gap-2 mb-4 mt-4 px-4">
-                <Avatar>{workspaceName.charAt(0).toUpperCase()}</Avatar>
-                <span className="text-sm font-semibold truncate min-w-0">{workspaceName}</span>
+                <Avatar>{currentWorkspace.name.charAt(0).toUpperCase()}</Avatar>
+                <span className="text-sm font-semibold truncate min-w-0">{currentWorkspace.name}</span>
                 <div className="ml-auto flex items-center">
                     <UserButton />
                 </div>
             </div>
 
-            <Tabs defaultValue="tab2" className="flex flex-col flex-1 min-h-0">
+            <Tabs defaultValue="pages" className="flex flex-col flex-1 min-h-0">
                 <TabsList className="gap-4 px-4">
-                    <TabsTrigger value="tab1" className="px-0 py-1">
-                        Spaces <span className="text-xs text-text-muted ml-1">1</span>
+                    <TabsTrigger value="workspaces" className="px-0 py-1">
+                        Workspaces <span className="text-xs text-text-muted ml-1">{workspaces.length}</span>
                     </TabsTrigger>
-                    <TabsTrigger value="tab2" className="px-0 py-1">
+                    <TabsTrigger value="pages" className="px-0 py-1">
                         Pages <span className="text-xs text-text-muted ml-1">{pages.length}</span>
                     </TabsTrigger>
                 </TabsList>
-                {/* Spaces tab */}
-                <TabsContent value="tab1" className="flex flex-col flex-1 min-h-0 justify-between overflow-y-auto">
-                    <div className="p-4">
-                        <InputSearch placeholder="Filter spaces"/>
-                        <p className="text-sm mt-4 text-text-muted">No spaces found.</p>
-                    </div>
-                    <div className="mt-auto border-t border-sidebar-border pt-4 p-4">
-                        <ButtonIcon>Create space</ButtonIcon>
-                    </div>
+                {/* Workspaces tab */}
+                <TabsContent value="workspaces" className="flex flex-col flex-1 min-h-0 justify-between overflow-y-auto">
+                    <SidebarWorkspaces workspaces={workspaces} currentWorkspaceId={currentWorkspace.id} />
                 </TabsContent>
                 {/* Pages tab */}
-                <TabsContent value="tab2" className="flex flex-col flex-1 min-h-0 justify-between overflow-y-auto">
+                <TabsContent value="pages" className="flex flex-col flex-1 min-h-0 justify-between overflow-y-auto">
                     <SidebarPages pages={pages} createPageAction={createPageAction} />
                 </TabsContent>
             </Tabs>

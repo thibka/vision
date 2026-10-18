@@ -4,15 +4,15 @@
 
 **Blocked by:** None. La persistance est tranchée : SQLite via `better-sqlite3`, voir `docs/adr/0001-sqlite-via-better-sqlite3.md`.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Un utilisateur sans Workspace obtient un Workspace par défaut à sa première visite authentifiée
 - [x] Le nom vaut « Thibaut's workspace » pour un prénom renseigné, et « Workspace 1 » pour un prénom vide ou absent
 - [x] Deux appels successifs ou concurrents ne créent qu'un seul Workspace
 - [x] Le nom ne change pas quand le profil Clerk change
-- [ ] `/` redirige vers `/[workspaceId]`
-- [ ] Le nom du Workspace courant remplace « Nimbus » en haut de la sidebar
-- [ ] Un Workspace inexistant ou d'un autre utilisateur renvoie une 404
+- [x] `/` redirige vers `/[workspaceId]`
+- [x] Le nom du Workspace courant remplace « Nimbus » en haut de la sidebar
+- [x] Un Workspace inexistant ou d'un autre utilisateur renvoie une 404
 - [x] Les Workspaces survivent à un redémarrage de l'application
 - [x] Le modèle permet plusieurs Workspaces par utilisateur
 - [x] Tests du module écrits après l'implémentation (pas de TDD, voir AGENTS.md), contre une vraie base de test, sans mock
@@ -20,3 +20,5 @@
 ## Comments
 
 **2026-10-08, implémentation.** Les cases cochées sont couvertes par `src/lib/workspaces.test.ts` (vraie base SQLite dans un fichier temporaire). Les trois cases non cochées sont implémentées (`src/app/page.tsx`, `src/app/[workspaceId]/`, `src/components/Sidebar.tsx`) et passent le typage et le build, mais restent à vérifier dans le navigateur avec une session connectée. Le refus d'accès lui-même (« introuvable » pour un Workspace inexistant ou d'un autre utilisateur) est testé au niveau du module.
+
+**2026-10-17, vérification.** Les trois cases restantes ont été vérifiées dans le navigateur avec une session connectée : `/` redirige vers `/[workspaceId]`, la sidebar affiche « Thibaut's workspace », et un Workspace inexistant ou d'un autre compte renvoie une 404 (statut HTTP 404, pas de soft 404). Ticket clos.

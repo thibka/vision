@@ -13,6 +13,12 @@ export const loadCurrentWorkspace = cache(async (workspaceId: string) => {
     return workspace;
 });
 
+// Lists the signed-in user's Workspaces, for the Workspaces tab of the sidebar.
+export async function loadWorkspaces() {
+    const { userId } = await auth.protect();
+    return workspaces().list(userId);
+}
+
 // Lists the Pages of the Workspace of the URL for the signed-in user, or renders the 404.
 export async function loadPages(workspaceId: string) {
     const { userId } = await auth.protect();

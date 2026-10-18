@@ -18,6 +18,9 @@ export function createWorkspacesModule(db: Database) {
     const selectFirst = db.prepare<[string], Workspace>(
         'SELECT id, name FROM workspaces WHERE user_id = ? ORDER BY created_at, rowid LIMIT 1',
     );
+    const selectAll = db.prepare<[string], Workspace>(
+        'SELECT id, name FROM workspaces WHERE user_id = ? ORDER BY created_at, rowid',
+    );
     const selectOwned = db.prepare<[string, string], Workspace>(
         'SELECT id, name FROM workspaces WHERE user_id = ? AND id = ?',
     );
@@ -57,6 +60,11 @@ export function createWorkspacesModule(db: Database) {
 
             const name = defaultWorkspaceName(await loadFirstName());
             return createDefaultIfNone.immediate(userId, name);
+        },
+
+        /** Lists the user's Workspaces, oldest first. */
+        async list(userId: string): Promise<Workspace[]> {
+            return selectAll.all(userId);
         },
 
         /** Returns null for a missing Workspace and for someone else's, without distinction. */

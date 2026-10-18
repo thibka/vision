@@ -1,5 +1,9 @@
 import Sidebar from '@/components/Sidebar';
-import { loadCurrentWorkspace, loadPages } from '@/lib/current-workspace';
+import {
+    loadCurrentWorkspace,
+    loadPages,
+    loadWorkspaces,
+} from '@/lib/current-workspace';
 import { createPage } from './actions';
 
 export default async function WorkspaceLayout({
@@ -7,15 +11,17 @@ export default async function WorkspaceLayout({
     params,
 }: LayoutProps<'/[workspaceId]'>) {
     const { workspaceId } = await params;
-    const workspace = await loadCurrentWorkspace(workspaceId);
+    const currentWorkspace = await loadCurrentWorkspace(workspaceId);
     const pages = await loadPages(workspaceId);
+    const workspaces = await loadWorkspaces();
 
     return (
         <div className="flex h-full">
             <Sidebar
-                workspaceName={workspace.name}
+                currentWorkspace={currentWorkspace}
+                workspaces={workspaces}
                 pages={pages}
-                createPageAction={createPage.bind(null, workspace.id)}
+                createPageAction={createPage.bind(null, currentWorkspace.id)}
             />
             {children}
         </div>
