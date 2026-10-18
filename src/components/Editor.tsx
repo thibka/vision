@@ -5,14 +5,21 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 
 export default function Editor() {
-    const editor = useCreateBlockNote({
-        initialContent: [
-            { type: "heading", props: { level: 1 }, content: "New page" },
-        ],
-    });
+    // Starts empty: the Page title is shown above the editor, not repeated in it
+    const editor = useCreateBlockNote();
 
     return (
-        <p>Pas de page</p>
-        
+        <BlockNoteView
+            editor={editor}
+            theme={{
+                borderRadius: 0,
+                colors: {
+                    editor: {
+                        text: "inherit",
+                        background: "transparent",
+                    },
+                },
+            }}
+        />
     );
 }
