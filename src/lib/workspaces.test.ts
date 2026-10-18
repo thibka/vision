@@ -24,7 +24,7 @@ function countWorkspaces(db: Database, userId: string) {
         .get(userId);
 }
 
-// No operation creates a second Workspace yet: insert one directly, with the given creation date
+// Inserts a Workspace directly, to control its creation date precisely
 function insertWorkspace(
     db: Database,
     userId: string,
@@ -81,7 +81,7 @@ describe('getOrCreateDefault', () => {
         ['blank', '   '],
         ['null', null],
         ['undefined', undefined],
-    ])('names it "Workspace 1" for a/an %s first name', async (_, value) => {
+    ])('names it "My workspace" for a/an %s first name', async (_, value) => {
         const workspaces = createWorkspacesModule(open());
 
         const workspace = await workspaces.getOrCreateDefault(
@@ -89,7 +89,7 @@ describe('getOrCreateDefault', () => {
             firstName(value),
         );
 
-        expect(workspace.name).toBe('Workspace 1');
+        expect(workspace.name).toBe('My workspace');
     });
 
     it('returns the same Workspace on successive calls', async () => {
@@ -185,6 +185,126 @@ describe('getOrCreateDefault', () => {
     });
 });
 
+describe('create', () => {
+    it('creates a new Workspace for a user who has none', async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+
+        const workspace = await workspaces.create(
+            'user_a',
+            firstName('Thibaut'),
+        );
+
+        expect(workspace.id).toEqual(expect.any(String));
+        expect(await workspaces.get('user_a', workspace.id)).toEqual(workspace);
+        expect(countWorkspaces(db, 'user_a')).toBe(1);
+    });
+
+    it('creates a new Workspace on every call, even when the user has one', async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        const first = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+
+        const second = await workspaces.create('user_a', firstName('Thibaut'));
+        const third = await workspaces.create('user_a', firstName('Thibaut'));
+
+        expect(new Set([first.id, second.id, third.id]).size).toBe(3);
+        expect(countWorkspaces(db, 'user_a')).toBe(3);
+    });
+
+    it("names it after the user's first name", async () => {
+        const workspaces = createWorkspacesModule(open());
+
+        const workspace = await workspaces.create(
+            'user_a',
+            firstName('Thibaut'),
+        );
+
+        expect(workspace.name).toBe("Thibaut's workspace");
+    });
+
+    it.each([
+        ['empty', ''],
+        ['blank', '   '],
+        ['null', null],
+        ['undefined', undefined],
+    ])('names it "My workspace" for a/an %s first name', async (_, value) => {
+        const workspaces = createWorkspacesModule(open());
+
+        const workspace = await workspaces.create('user_a', firstName(value));
+
+        expect(workspace.name).toBe('My workspace');
+    });
+
+    it('allows two Workspaces with the same name', async () => {
+        const workspaces = createWorkspacesModule(open());
+
+        const a = await workspaces.create('user_a', firstName('Thibaut'));
+        const b = await workspaces.create('user_a', firstName('Thibaut'));
+
+        expect(b.id).not.toBe(a.id);
+        expect(b.name).toBe(a.name);
+        expect(await workspaces.list('user_a')).toEqual([a, b]);
+    });
+
+    it('takes the first name at the time of creation', async () => {
+        const workspaces = createWorkspacesModule(open());
+        const before = await workspaces.create('user_a', firstName('Thibaut'));
+
+        const after = await workspaces.create('user_a', firstName('Tibo'));
+
+        expect(after.name).toBe("Tibo's workspace");
+        expect(await workspaces.get('user_a', before.id)).toEqual(before);
+        expect(before.name).toBe("Thibaut's workspace");
+    });
+
+    it('lists the created Workspace last', async () => {
+        const workspaces = createWorkspacesModule(open());
+        const first = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+
+        const second = await workspaces.create('user_a', firstName('Thibaut'));
+        const third = await workspaces.create('user_a', firstName('Tibo'));
+
+        expect(await workspaces.list('user_a')).toEqual([first, second, third]);
+    });
+
+    it('keeps the created Workspace away from other users', async () => {
+        const workspaces = createWorkspacesModule(open());
+        const theirs = await workspaces.getOrCreateDefault(
+            'user_b',
+            firstName('Bob'),
+        );
+
+        const mine = await workspaces.create('user_a', firstName('Ada'));
+
+        expect(await workspaces.get('user_b', mine.id)).toBeNull();
+        expect(await workspaces.list('user_b')).toEqual([theirs]);
+        expect(await workspaces.list('user_a')).toEqual([mine]);
+    });
+
+    it('leaves getOrCreateDefault returning the first-created Workspace', async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        const first = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+        await workspaces.create('user_a', firstName('Thibaut'));
+        await workspaces.create('user_a', firstName('Tibo'));
+
+        expect(
+            await workspaces.getOrCreateDefault('user_a', firstName('Tibo')),
+        ).toEqual(first);
+        expect(countWorkspaces(db, 'user_a')).toBe(3);
+    });
+});
+
 describe('get', () => {
     it('returns null for a Workspace that does not exist', async () => {
         const workspaces = createWorkspacesModule(open());
@@ -261,5 +381,24 @@ describe('persistence', () => {
         expect(
             await workspaces.getOrCreateDefault('user_a', firstName('Tibo')),
         ).toEqual(workspace);
+    });
+
+    it('keeps created Workspaces after the database is closed and reopened', async () => {
+        const before = open();
+        const beforeWorkspaces = createWorkspacesModule(before);
+        const first = await beforeWorkspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+        const created = await beforeWorkspaces.create(
+            'user_a',
+            firstName('Thibaut'),
+        );
+        before.close();
+
+        const workspaces = createWorkspacesModule(open());
+
+        expect(await workspaces.get('user_a', created.id)).toEqual(created);
+        expect(await workspaces.list('user_a')).toEqual([first, created]);
     });
 });

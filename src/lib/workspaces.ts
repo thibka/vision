@@ -11,7 +11,7 @@ type FirstNameLoader = () => Promise<string | null | undefined>;
 
 function defaultWorkspaceName(firstName: string | null | undefined) {
     const trimmed = firstName?.trim();
-    return trimmed ? `${trimmed}'s workspace` : 'Workspace 1';
+    return trimmed ? `${trimmed}'s workspace` : 'My workspace';
 }
 
 export function createWorkspacesModule(db: Database) {
@@ -28,21 +28,21 @@ export function createWorkspacesModule(db: Database) {
         'INSERT INTO workspaces (id, user_id, name, created_at) VALUES (?, ?, ?, ?)',
     );
 
+    function insertWorkspace(userId: string, name: string): Workspace {
+        const workspace = { id: randomUUID(), name };
+        insert.run(
+            workspace.id,
+            userId,
+            workspace.name,
+            new Date().toISOString(),
+        );
+        return workspace;
+    }
+
     // Re-reads under the write lock: a concurrent caller may have created it since our first read
     const createDefaultIfNone = db.transaction(
-        (userId: string, name: string): Workspace => {
-            const existing = selectFirst.get(userId);
-            if (existing) return existing;
-
-            const workspace = { id: randomUUID(), name };
-            insert.run(
-                workspace.id,
-                userId,
-                workspace.name,
-                new Date().toISOString(),
-            );
-            return workspace;
-        },
+        (userId: string, name: string): Workspace =>
+            selectFirst.get(userId) ?? insertWorkspace(userId, name),
     );
 
     return {
@@ -60,6 +60,18 @@ export function createWorkspacesModule(db: Database) {
 
             const name = defaultWorkspaceName(await loadFirstName());
             return createDefaultIfNone.immediate(userId, name);
+        },
+
+        /**
+         * Always creates a new Workspace with the default name, even if the user already has some.
+         * Names are not unique: two Workspaces can share one.
+         */
+        async create(
+            userId: string,
+            loadFirstName: FirstNameLoader,
+        ): Promise<Workspace> {
+            const name = defaultWorkspaceName(await loadFirstName());
+            return insertWorkspace(userId, name);
         },
 
         /** Lists the user's Workspaces, oldest first. */

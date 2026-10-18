@@ -11,11 +11,13 @@ export default function Sidebar({
     workspaces,
     pages,
     createPageAction,
+    createWorkspaceAction,
 }: {
     currentWorkspace: Workspace;
     workspaces: Workspace[];
     pages: Page[];
     createPageAction: () => Promise<void>;
+    createWorkspaceAction: () => Promise<void>;
 }) {
     return (
         <aside aria-label="Sidebar" className="flex flex-col w-65 h-full border-r border-sidebar-border bg-sidebar-bg">
@@ -38,7 +40,11 @@ export default function Sidebar({
                 </TabsList>
                 {/* Workspaces tab */}
                 <TabsContent value="workspaces" className="flex flex-col flex-1 min-h-0 justify-between overflow-y-auto">
-                    <SidebarWorkspaces workspaces={workspaces} currentWorkspaceId={currentWorkspace.id} />
+                    <SidebarWorkspaces
+                        workspaces={workspaces}
+                        currentWorkspaceId={currentWorkspace.id}
+                        createWorkspaceAction={createWorkspaceAction}
+                    />
                 </TabsContent>
                 {/* Pages tab */}
                 <TabsContent value="pages" className="flex flex-col flex-1 min-h-0 justify-between overflow-y-auto">

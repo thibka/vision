@@ -13,4 +13,5 @@
 - Raccourcis clavier globaux
 - Déplacement de Pages (changement de parent ou d'ordre, refus des cycles)
 - Drag & drop dans la sidebar
+- Redirection de `/` vers le dernier Workspace visité
 - Déploiement public (après ajout de l'authentification)

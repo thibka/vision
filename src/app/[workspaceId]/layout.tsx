@@ -4,7 +4,7 @@ import {
     loadPages,
     loadWorkspaces,
 } from '@/lib/current-workspace';
-import { createPage } from './actions';
+import { createPage, createWorkspace } from './actions';
 
 export default async function WorkspaceLayout({
     children,
@@ -22,6 +22,7 @@ export default async function WorkspaceLayout({
                 workspaces={workspaces}
                 pages={pages}
                 createPageAction={createPage.bind(null, currentWorkspace.id)}
+                createWorkspaceAction={createWorkspace}
             />
             {children}
         </div>
