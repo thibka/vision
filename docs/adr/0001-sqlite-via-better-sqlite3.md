@@ -12,7 +12,7 @@ Les données sont stockées dans un fichier SQLite local, lu et écrit avec `bet
 
 - Le fichier est `data/vision.db` par défaut, ignoré par git. La variable `DATABASE_PATH` permet d'en changer.
 - Le schéma est versionné par des fichiers `.sql` écrits à la main dans `migrations/`, appliqués dans l'ordre des noms à l'ouverture de la base, une seule fois chacun.
-- Seuls `src/lib/db.ts` et les modules métier (`src/lib/workspaces.ts`) touchent à la base. Les routes et la sidebar passent par ces modules.
+- Seuls `src/lib/db.ts` et les modules métier (`src/lib/workspaces.ts`, `src/lib/pages.ts`) touchent à la base. Les routes et la sidebar passent par ces modules.
 - L'interface des modules métier est asynchrone, bien que le pilote soit synchrone, pour que les appelants ne dépendent pas du pilote.
 
 ## Alternatives écartées

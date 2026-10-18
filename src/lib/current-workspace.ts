@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { auth } from '@clerk/nextjs/server';
 import { notFound } from 'next/navigation';
+import { pages } from '@/lib/pages';
 import { workspaces } from '@/lib/workspaces';
 
 // Resolves the Workspace of the URL for the signed-in user, or renders the 404.
@@ -11,3 +12,19 @@ export const loadCurrentWorkspace = cache(async (workspaceId: string) => {
     if (!workspace) notFound();
     return workspace;
 });
+
+// Lists the Pages of the Workspace of the URL for the signed-in user, or renders the 404.
+export async function loadPages(workspaceId: string) {
+    const { userId } = await auth.protect();
+    const list = await pages().list(userId, workspaceId);
+    if (!list) notFound();
+    return list;
+}
+
+// Resolves the Page of the URL, or renders the 404 when it isn't a Page of that Workspace.
+export async function loadPage(workspaceId: string, pageId: string) {
+    const { userId } = await auth.protect();
+    const page = await pages().get(userId, workspaceId, pageId);
+    if (!page) notFound();
+    return page;
+}

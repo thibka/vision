@@ -3,7 +3,17 @@
 import { Input } from "@/components/Input"
 import { Label } from "@/components/Label"
 
-export default function InputSearch({ children, placeholder }: { children?: React.ReactNode; placeholder: string }) {
+export default function InputSearch({
+  children,
+  placeholder,
+  value,
+  onChange,
+}: {
+  children?: React.ReactNode
+  placeholder: string
+  value?: string
+  onChange?: React.ChangeEventHandler<HTMLInputElement>
+}) {
   return (
     <div className="mx-auto max-w-xs space-y-2">
       {children && <Label htmlFor="search" className="mb-2">{ children }</Label>}
@@ -12,6 +22,8 @@ export default function InputSearch({ children, placeholder }: { children?: Reac
         id="search"
         name="search"
         type="search"
+        value={value}
+        onChange={onChange}
       />
     </div>
   )
