@@ -1,3 +1,4 @@
+import { LivePageTitleProvider } from '@/components/LivePageTitle';
 import Sidebar from '@/components/Sidebar';
 import {
     loadCurrentWorkspace,
@@ -21,17 +22,19 @@ export default async function WorkspaceLayout({
     const workspaces = await loadWorkspaces();
 
     return (
-        <div className="flex h-full">
-            <Sidebar
-                currentWorkspace={currentWorkspace}
-                workspaces={workspaces}
-                pages={pages}
-                createPageAction={createPage.bind(null, currentWorkspace.id)}
-                deletePageAction={deletePage.bind(null, currentWorkspace.id)}
-                createWorkspaceAction={createWorkspace}
-                deleteWorkspaceAction={deleteWorkspace}
-            />
-            {children}
-        </div>
+        <LivePageTitleProvider>
+            <div className="flex h-full">
+                <Sidebar
+                    currentWorkspace={currentWorkspace}
+                    workspaces={workspaces}
+                    pages={pages}
+                    createPageAction={createPage.bind(null, currentWorkspace.id)}
+                    deletePageAction={deletePage.bind(null, currentWorkspace.id)}
+                    createWorkspaceAction={createWorkspace}
+                    deleteWorkspaceAction={deleteWorkspace}
+                />
+                {children}
+            </div>
+        </LivePageTitleProvider>
     );
 }

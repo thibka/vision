@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import { TrashIcon } from '@radix-ui/react-icons';
 import InputSearch from '@/components/InputSearch';
 import ButtonIcon from '@/components/ButtonIcon';
+import { usePagesWithLiveTitle } from '@/components/LivePageTitle';
 import { cx, focusRing } from '@/lib/utils';
 import type { Page } from '@/lib/pages';
 
@@ -52,11 +53,13 @@ export default function SidebarPages({
 }) {
     // The sidebar lives in the layout, which only knows the Workspace: the open Page is in the URL
     const { pageId: openPageId } = useParams<{ pageId?: string }>();
+    // For the filter as for the display
+    const shownPages = usePagesWithLiveTitle(pages);
     const [filter, setFilter] = useState('');
     const query = filter.trim().toLowerCase();
     const visiblePages = query
-        ? pages.filter((page) => page.title.toLowerCase().includes(query))
-        : pages;
+        ? shownPages.filter((page) => page.title.toLowerCase().includes(query))
+        : shownPages;
 
     return (
         <>

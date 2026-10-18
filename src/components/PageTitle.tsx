@@ -1,6 +1,7 @@
 'use client';
 
 import { startTransition, useLayoutEffect, useRef, useState } from 'react';
+import { usePublishLivePageTitle } from '@/components/LivePageTitle';
 import { cx } from '@/lib/utils';
 import { normalizePageTitle, truncatePageTitle } from '@/lib/page-title';
 
@@ -45,15 +46,24 @@ function useFallbackAutoHeight(value: string) {
 }
 
 export default function PageTitle({
+    pageId,
     title,
     renameAction,
 }: {
+    pageId: string;
     title: string;
     renameAction: (title: string) => Promise<void>;
 }) {
     const [draft, setDraft] = useState(title);
     const [savedTitle, setSavedTitle] = useState(title);
     const textareaRef = useFallbackAutoHeight(draft);
+    const publishLiveTitle = usePublishLivePageTitle();
+
+    // Published on keystrokes only, so a Page whose title isn't touched shows its saved title
+    function changeDraft(value: string) {
+        setDraft(value);
+        publishLiveTitle({ pageId, title: normalizePageTitle(value) });
+    }
 
     // Enter and Escape blur the field, so every way out of it saves through here: there is no cancel
     function save() {
@@ -76,7 +86,7 @@ export default function PageTitle({
                 // A title is a single line, even when pasted from several. Truncated rather than
                 // `maxLength`, which counts UTF-16 units where the server counts characters.
                 onChange={(event) =>
-                    setDraft(
+                    changeDraft(
                         truncatePageTitle(
                             event.target.value.replace(/\r?\n/g, ' '),
                         ),

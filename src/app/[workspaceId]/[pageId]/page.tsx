@@ -14,6 +14,7 @@ export default async function PageRoute({
             {/* Keyed by Page, so the title field starts afresh on each Page */}
             <PageTitle
                 key={page.id}
+                pageId={page.id}
                 title={page.title}
                 renameAction={renamePage.bind(null, workspaceId, page.id)}
             />
