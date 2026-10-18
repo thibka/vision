@@ -39,9 +39,40 @@ export function createPagesModule(db: Database) {
          WHERE id = ? AND workspace_id = ?
            AND workspace_id IN (SELECT id FROM workspaces WHERE user_id = ?)`,
     );
+    // Deletes nothing unless the Page is in that Workspace and the Workspace belongs to the user
+    const deleteOwned = db.prepare(
+        `DELETE FROM pages
+         WHERE id = ? AND workspace_id = ?
+           AND workspace_id IN (SELECT id FROM workspaces WHERE user_id = ?)`,
+    );
+    const hasPages = db
+        .prepare<
+            [string],
+            number
+        >('SELECT 1 FROM pages WHERE workspace_id = ? LIMIT 1')
+        .pluck();
     const selectByWorkspace = db.prepare<[string], Page>(
         `SELECT id, workspace_id AS workspaceId, parent_id AS parentId, title
          FROM pages WHERE workspace_id = ? ORDER BY created_at, rowid`,
+    );
+
+    // A Workspace always has at least one Page: its last one is replaced in the same transaction
+    const deleteKeepingOne = db.transaction(
+        (userId: string, workspaceId: string, pageId: string): boolean => {
+            const { changes } = deleteOwned.run(pageId, workspaceId, userId);
+            if (changes === 0) return false;
+
+            if (!hasPages.get(workspaceId)) {
+                insertAtRoot.run(
+                    randomUUID(),
+                    DEFAULT_PAGE_TITLE,
+                    new Date().toISOString(),
+                    userId,
+                    workspaceId,
+                );
+            }
+            return true;
+        },
     );
 
     return {
@@ -107,6 +138,20 @@ export function createPagesModule(db: Database) {
             );
             if (changes === 0) return null;
             return selectOwned.get(userId, workspaceId, pageId) ?? null;
+        },
+
+        /**
+         * Deletes the Page for good. Deleting the last Page of the Workspace creates a "New page"
+         * Page at its root in its place.
+         * Returns false for a missing Page, for a Page of another Workspace than `workspaceId`,
+         * and for someone else's Workspace, without distinction.
+         */
+        async delete(
+            userId: string,
+            workspaceId: string,
+            pageId: string,
+        ): Promise<boolean> {
+            return deleteKeepingOne.immediate(userId, workspaceId, pageId);
         },
 
         /**

@@ -390,6 +390,115 @@ describe('rename', () => {
     });
 });
 
+describe('delete', () => {
+    it('returns true, and the Page is gone from list and get', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const initial = await initialPage(db, 'user_a', workspace.id);
+        const page = await pages.createAtRoot('user_a', workspace.id);
+
+        expect(await pages.delete('user_a', workspace.id, page!.id)).toBe(true);
+        expect(await pages.get('user_a', workspace.id, page!.id)).toBeNull();
+        expect(await pages.list('user_a', workspace.id)).toEqual([initial]);
+    });
+
+    it('creates nothing when other Pages are left', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const initial = await initialPage(db, 'user_a', workspace.id);
+        const first = await pages.createAtRoot('user_a', workspace.id);
+        const second = await pages.createAtRoot('user_a', workspace.id);
+
+        await pages.delete('user_a', workspace.id, first!.id);
+
+        expect(await pages.list('user_a', workspace.id)).toEqual([
+            initial,
+            second,
+        ]);
+    });
+
+    it('replaces the last Page with exactly one other "New page" Page', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const page = await initialPage(db, 'user_a', workspace.id);
+        await pages.rename('user_a', workspace.id, page.id, 'Roadmap');
+
+        expect(await pages.delete('user_a', workspace.id, page.id)).toBe(true);
+
+        const list = await pages.list('user_a', workspace.id);
+        expect(list).toEqual([
+            {
+                id: expect.any(String),
+                workspaceId: workspace.id,
+                parentId: null,
+                title: 'New page',
+            },
+        ]);
+        expect(list![0].id).not.toBe(page.id);
+    });
+
+    it('returns false for a Page already deleted, and creates nothing', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const initial = await initialPage(db, 'user_a', workspace.id);
+        const page = await pages.createAtRoot('user_a', workspace.id);
+        await pages.delete('user_a', workspace.id, page!.id);
+
+        expect(await pages.delete('user_a', workspace.id, page!.id)).toBe(false);
+        expect(await pages.list('user_a', workspace.id)).toEqual([initial]);
+    });
+
+    it('returns false for a Page that does not exist, and deletes nothing', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const initial = await initialPage(db, 'user_a', workspace.id);
+
+        expect(await pages.delete('user_a', workspace.id, 'missing')).toBe(false);
+        expect(await pages.list('user_a', workspace.id)).toEqual([initial]);
+    });
+
+    it('returns false for a Page asked with the wrong Workspace, without deleting or creating', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const other = await secondWorkspace(db, 'user_a');
+        const page = await initialPage(db, 'user_a', workspace.id);
+        const otherInitial = await initialPage(db, 'user_a', other.id);
+
+        expect(await pages.delete('user_a', other.id, page.id)).toBe(false);
+        expect(await pages.list('user_a', workspace.id)).toEqual([page]);
+        expect(await pages.list('user_a', other.id)).toEqual([otherInitial]);
+    });
+
+    it("returns false for a Page in another user's Workspace, without deleting or creating", async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const page = await initialPage(db, 'user_a', workspace.id);
+
+        expect(await pages.delete('user_b', workspace.id, page.id)).toBe(false);
+        expect(await pages.list('user_a', workspace.id)).toEqual([page]);
+    });
+
+    it('returns false when another user deletes the Page with their own Workspace', async () => {
+        const db = open();
+        const pages = createPagesModule(db);
+        const workspaceA = await defaultWorkspace(db, 'user_a');
+        const workspaceB = await defaultWorkspace(db, 'user_b');
+        const page = await initialPage(db, 'user_a', workspaceA.id);
+        const pageB = await initialPage(db, 'user_b', workspaceB.id);
+
+        expect(await pages.delete('user_b', workspaceB.id, page.id)).toBe(false);
+        expect(await pages.list('user_a', workspaceA.id)).toEqual([page]);
+        expect(await pages.list('user_b', workspaceB.id)).toEqual([pageB]);
+    });
+});
+
 describe('persistence', () => {
     it('keeps Pages after the database is closed and reopened', async () => {
         const before = open();
@@ -423,5 +532,36 @@ describe('persistence', () => {
 
         expect(await pages.get('user_a', workspace.id, page.id)).toEqual(renamed);
         expect(await pages.list('user_a', workspace.id)).toEqual([renamed]);
+    });
+
+    it('keeps a deletion after the database is closed and reopened', async () => {
+        const before = open();
+        const workspace = await defaultWorkspace(before, 'user_a');
+        const initial = await initialPage(before, 'user_a', workspace.id);
+        const page = await createPagesModule(before).createAtRoot(
+            'user_a',
+            workspace.id,
+        );
+        await createPagesModule(before).delete('user_a', workspace.id, page!.id);
+        before.close();
+
+        const pages = createPagesModule(open());
+
+        expect(await pages.get('user_a', workspace.id, page!.id)).toBeNull();
+        expect(await pages.list('user_a', workspace.id)).toEqual([initial]);
+    });
+
+    it('keeps the "New page" Page that replaced the last one after the database is closed and reopened', async () => {
+        const before = open();
+        const workspace = await defaultWorkspace(before, 'user_a');
+        const initial = await initialPage(before, 'user_a', workspace.id);
+        await createPagesModule(before).delete('user_a', workspace.id, initial.id);
+        const replacement = await initialPage(before, 'user_a', workspace.id);
+        before.close();
+
+        const pages = createPagesModule(open());
+
+        expect(await pages.list('user_a', workspace.id)).toEqual([replacement]);
+        expect(replacement.id).not.toBe(initial.id);
     });
 });

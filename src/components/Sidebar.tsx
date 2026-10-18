@@ -11,12 +11,14 @@ export default function Sidebar({
     workspaces,
     pages,
     createPageAction,
+    deletePageAction,
     createWorkspaceAction,
 }: {
     currentWorkspace: Workspace;
     workspaces: Workspace[];
     pages: Page[];
     createPageAction: () => Promise<void>;
+    deletePageAction: (pageId: string, isOpen: boolean) => Promise<void>;
     createWorkspaceAction: () => Promise<void>;
 }) {
     return (
@@ -48,7 +50,11 @@ export default function Sidebar({
                 </TabsContent>
                 {/* Pages tab */}
                 <TabsContent value="pages" className="flex flex-col flex-1 min-h-0 justify-between overflow-y-auto">
-                    <SidebarPages pages={pages} createPageAction={createPageAction} />
+                    <SidebarPages
+                        pages={pages}
+                        createPageAction={createPageAction}
+                        deletePageAction={deletePageAction}
+                    />
                 </TabsContent>
             </Tabs>
         </aside>
