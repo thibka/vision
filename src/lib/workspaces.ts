@@ -1,6 +1,7 @@
 import type { Database } from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { getDatabase } from './db';
+import { DEFAULT_PAGE_TITLE } from './pages';
 
 export type Workspace = {
     id: string;
@@ -27,27 +28,37 @@ export function createWorkspacesModule(db: Database) {
     const insert = db.prepare(
         'INSERT INTO workspaces (id, user_id, name, created_at) VALUES (?, ?, ?, ?)',
     );
+    const insertInitialPage = db.prepare(
+        `INSERT INTO pages (id, workspace_id, parent_id, title, created_at)
+         VALUES (?, ?, NULL, ?, ?)`,
+    );
 
-    function insertWorkspace(userId: string, name: string): Workspace {
-        const workspace = { id: randomUUID(), name };
-        insert.run(
-            workspace.id,
-            userId,
-            workspace.name,
-            new Date().toISOString(),
-        );
-        return workspace;
-    }
+    // A Workspace always has at least one Page: it is created with one, in the same transaction
+    const insertWorkspaceWithPage = db.transaction(
+        (userId: string, name: string): Workspace => {
+            const workspace = { id: randomUUID(), name };
+            const createdAt = new Date().toISOString();
+            insert.run(workspace.id, userId, workspace.name, createdAt);
+            insertInitialPage.run(
+                randomUUID(),
+                workspace.id,
+                DEFAULT_PAGE_TITLE,
+                createdAt,
+            );
+            return workspace;
+        },
+    );
 
     // Re-reads under the write lock: a concurrent caller may have created it since our first read
     const createDefaultIfNone = db.transaction(
         (userId: string, name: string): Workspace =>
-            selectFirst.get(userId) ?? insertWorkspace(userId, name),
+            selectFirst.get(userId) ?? insertWorkspaceWithPage(userId, name),
     );
 
     return {
         /**
-         * Returns the user's first-created Workspace, creating the default one if they have none.
+         * Returns the user's first-created Workspace, creating the default one if they have none,
+         * with a "New page" Page at its root.
          * `loadFirstName` is only called when a Workspace has to be created: the name is copied
          * once and never follows the profile afterwards.
          */
@@ -63,15 +74,15 @@ export function createWorkspacesModule(db: Database) {
         },
 
         /**
-         * Always creates a new Workspace with the default name, even if the user already has some.
-         * Names are not unique: two Workspaces can share one.
+         * Always creates a new Workspace with the default name, even if the user already has some,
+         * with a "New page" Page at its root. Names are not unique: two Workspaces can share one.
          */
         async create(
             userId: string,
             loadFirstName: FirstNameLoader,
         ): Promise<Workspace> {
             const name = defaultWorkspaceName(await loadFirstName());
-            return insertWorkspace(userId, name);
+            return insertWorkspaceWithPage(userId, name);
         },
 
         /** Lists the user's Workspaces, oldest first. */

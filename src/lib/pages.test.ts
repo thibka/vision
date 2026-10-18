@@ -4,7 +4,7 @@ import path from 'node:path';
 import type { Database } from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDatabase } from './db';
-import { createPagesModule } from './pages';
+import { createPagesModule, type Page } from './pages';
 import { createWorkspacesModule } from './workspaces';
 
 let dir: string;
@@ -25,13 +25,14 @@ function defaultWorkspace(db: Database, userId: string) {
     );
 }
 
-// No operation creates a second Workspace yet: insert one directly
 function secondWorkspace(db: Database, userId: string) {
-    const workspace = { id: `second-${userId}`, name: 'Side projects' };
-    db.prepare(
-        'INSERT INTO workspaces (id, user_id, name, created_at) VALUES (?, ?, ?, ?)',
-    ).run(workspace.id, userId, workspace.name, new Date().toISOString());
-    return workspace;
+    return createWorkspacesModule(db).create(userId, async () => userId);
+}
+
+// The "New page" Page every Workspace is created with
+async function initialPage(db: Database, userId: string, workspaceId: string) {
+    const [initial] = (await createPagesModule(db).list(userId, workspaceId))!;
+    return initial;
 }
 
 beforeEach(() => {
@@ -47,7 +48,7 @@ afterEach(() => {
 });
 
 describe('createAtRoot', () => {
-    it('creates an "Untitled" Page at the root of the Workspace', async () => {
+    it('creates a "New page" Page at the root of the Workspace', async () => {
         const db = open();
         const pages = createPagesModule(db);
         const workspace = await defaultWorkspace(db, 'user_a');
@@ -58,7 +59,7 @@ describe('createAtRoot', () => {
             id: expect.any(String),
             workspaceId: workspace.id,
             parentId: null,
-            title: 'Untitled',
+            title: 'New page',
         });
         expect(await pages.get('user_a', workspace.id, page!.id)).toEqual(page);
     });
@@ -72,7 +73,8 @@ describe('createAtRoot', () => {
         const second = await pages.createAtRoot('user_a', workspace.id);
 
         expect(second!.id).not.toBe(first!.id);
-        expect(await pages.list('user_a', workspace.id)).toHaveLength(2);
+        // Plus the initial Page
+        expect(await pages.list('user_a', workspace.id)).toHaveLength(3);
     });
 
     it('returns null for a Workspace that does not exist', async () => {
@@ -86,8 +88,10 @@ describe('createAtRoot', () => {
         const pages = createPagesModule(db);
         const workspace = await defaultWorkspace(db, 'user_a');
 
+        const initial = await initialPage(db, 'user_a', workspace.id);
+
         expect(await pages.createAtRoot('user_b', workspace.id)).toBeNull();
-        expect(await pages.list('user_a', workspace.id)).toEqual([]);
+        expect(await pages.list('user_a', workspace.id)).toEqual([initial]);
     });
 });
 
@@ -113,7 +117,7 @@ describe('get', () => {
         const db = open();
         const pages = createPagesModule(db);
         const workspace = await defaultWorkspace(db, 'user_a');
-        const other = secondWorkspace(db, 'user_a');
+        const other = await secondWorkspace(db, 'user_a');
         const page = await pages.createAtRoot('user_a', workspace.id);
 
         expect(await pages.get('user_a', other.id, page!.id)).toBeNull();
@@ -132,29 +136,39 @@ describe('get', () => {
 });
 
 describe('list', () => {
-    it('returns an empty list for a Workspace without Pages', async () => {
+    it('lists the initial "New page" Page of a fresh Workspace', async () => {
         const db = open();
         const pages = createPagesModule(db);
         const workspace = await defaultWorkspace(db, 'user_a');
 
-        expect(await pages.list('user_a', workspace.id)).toEqual([]);
+        expect(await pages.list('user_a', workspace.id)).toEqual([
+            {
+                id: expect.any(String),
+                workspaceId: workspace.id,
+                parentId: null,
+                title: 'New page',
+            },
+        ]);
     });
 
     it('lists the Pages from the oldest to the most recent', async () => {
         const db = open();
         const pages = createPagesModule(db);
-        const workspace = await defaultWorkspace(db, 'user_a');
 
         vi.useFakeTimers({ toFake: ['Date'] });
-        // Created out of date order, so the list can't just be the insertion order
-        vi.setSystemTime(new Date('2026-01-03'));
-        const recent = await pages.createAtRoot('user_a', workspace.id);
         vi.setSystemTime(new Date('2026-01-01'));
-        const oldest = await pages.createAtRoot('user_a', workspace.id);
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const initial = await initialPage(db, 'user_a', workspace.id);
+        // Created out of date order, so the list can't just be the insertion order
+        vi.setSystemTime(new Date('2026-01-04'));
+        const recent = await pages.createAtRoot('user_a', workspace.id);
         vi.setSystemTime(new Date('2026-01-02'));
+        const oldest = await pages.createAtRoot('user_a', workspace.id);
+        vi.setSystemTime(new Date('2026-01-03'));
         const middle = await pages.createAtRoot('user_a', workspace.id);
 
         expect(await pages.list('user_a', workspace.id)).toEqual([
+            initial,
             oldest,
             middle,
             recent,
@@ -164,11 +178,13 @@ describe('list', () => {
     it('keeps the creation order for Pages created at the same instant', async () => {
         const db = open();
         const pages = createPagesModule(db);
-        const workspace = await defaultWorkspace(db, 'user_a');
 
         vi.useFakeTimers({ toFake: ['Date'] });
         vi.setSystemTime(new Date('2026-01-01'));
-        const created = [];
+        const workspace = await defaultWorkspace(db, 'user_a');
+        const created: (Page | null)[] = [
+            await initialPage(db, 'user_a', workspace.id),
+        ];
         for (let i = 0; i < 5; i++) {
             created.push(await pages.createAtRoot('user_a', workspace.id));
         }
@@ -180,12 +196,17 @@ describe('list', () => {
         const db = open();
         const pages = createPagesModule(db);
         const workspace = await defaultWorkspace(db, 'user_a');
-        const other = secondWorkspace(db, 'user_a');
+        const other = await secondWorkspace(db, 'user_a');
+        const initial = await initialPage(db, 'user_a', workspace.id);
+        const otherInitial = await initialPage(db, 'user_a', other.id);
         const page = await pages.createAtRoot('user_a', workspace.id);
         const otherPage = await pages.createAtRoot('user_a', other.id);
 
-        expect(await pages.list('user_a', workspace.id)).toEqual([page]);
-        expect(await pages.list('user_a', other.id)).toEqual([otherPage]);
+        expect(await pages.list('user_a', workspace.id)).toEqual([initial, page]);
+        expect(await pages.list('user_a', other.id)).toEqual([
+            otherInitial,
+            otherPage,
+        ]);
     });
 
     it('returns null for a Workspace that does not exist', async () => {
@@ -208,6 +229,7 @@ describe('persistence', () => {
     it('keeps Pages after the database is closed and reopened', async () => {
         const before = open();
         const workspace = await defaultWorkspace(before, 'user_a');
+        const initial = await initialPage(before, 'user_a', workspace.id);
         const page = await createPagesModule(before).createAtRoot(
             'user_a',
             workspace.id,
@@ -216,7 +238,7 @@ describe('persistence', () => {
 
         const pages = createPagesModule(open());
 
-        expect(await pages.list('user_a', workspace.id)).toEqual([page]);
+        expect(await pages.list('user_a', workspace.id)).toEqual([initial, page]);
         expect(await pages.get('user_a', workspace.id, page!.id)).toEqual(page);
     });
 });

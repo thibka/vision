@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { Database } from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDatabase } from './db';
+import { createPagesModule } from './pages';
 import { createWorkspacesModule } from './workspaces';
 
 let dir: string;
@@ -22,6 +23,13 @@ function countWorkspaces(db: Database, userId: string) {
         .prepare('SELECT count(*) FROM workspaces WHERE user_id = ?')
         .pluck()
         .get(userId);
+}
+
+// Makes every Page insert fail, to check that a Workspace is never left without its Page
+function failPageInserts(db: Database) {
+    db.exec(
+        "CREATE TRIGGER fail_page_insert BEFORE INSERT ON pages BEGIN SELECT RAISE(ABORT, 'no page'); END",
+    );
 }
 
 // Inserts a Workspace directly, to control its creation date precisely
@@ -63,6 +71,25 @@ describe('getOrCreateDefault', () => {
         expect(workspace.id).toEqual(expect.any(String));
         expect(await workspaces.get('user_a', workspace.id)).toEqual(workspace);
         expect(countWorkspaces(db, 'user_a')).toBe(1);
+    });
+
+    it('creates it with a single "New page" Page at its root', async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+
+        const workspace = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+
+        expect(await createPagesModule(db).list('user_a', workspace.id)).toEqual([
+            {
+                id: expect.any(String),
+                workspaceId: workspace.id,
+                parentId: null,
+                title: 'New page',
+            },
+        ]);
     });
 
     it("names it after the user's first name", async () => {
@@ -107,6 +134,9 @@ describe('getOrCreateDefault', () => {
 
         expect(second).toEqual(first);
         expect(countWorkspaces(db, 'user_a')).toBe(1);
+        expect(await createPagesModule(db).list('user_a', first.id)).toHaveLength(
+            1,
+        );
     });
 
     it('creates a single Workspace under concurrent calls', async () => {
@@ -122,6 +152,9 @@ describe('getOrCreateDefault', () => {
 
         expect(new Set(results.map((workspace) => workspace.id)).size).toBe(1);
         expect(countWorkspaces(db, 'user_a')).toBe(1);
+        expect(
+            await createPagesModule(db).list('user_a', results[0].id),
+        ).toHaveLength(1);
     });
 
     it('creates a single Workspace under concurrent calls from two connections', async () => {
@@ -136,6 +169,7 @@ describe('getOrCreateDefault', () => {
 
         expect(b).toEqual(a);
         expect(countWorkspaces(db, 'user_a')).toBe(1);
+        expect(await createPagesModule(db).list('user_a', a.id)).toHaveLength(1);
     });
 
     it('keeps the name when the profile changes', async () => {
@@ -160,6 +194,36 @@ describe('getOrCreateDefault', () => {
 
         expect(b.id).not.toBe(a.id);
         expect(b.name).toBe("Bob's workspace");
+    });
+
+    it('keeps the initial Page away from other users', async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        const pages = createPagesModule(db);
+        const mine = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Ada'),
+        );
+        const theirs = await workspaces.getOrCreateDefault(
+            'user_b',
+            firstName('Bob'),
+        );
+        const [initial] = (await pages.list('user_a', mine.id))!;
+
+        expect(await pages.list('user_b', mine.id)).toBeNull();
+        expect(await pages.get('user_b', mine.id, initial.id)).toBeNull();
+        expect(await pages.get('user_b', theirs.id, initial.id)).toBeNull();
+    });
+
+    it('creates no Workspace when its initial Page cannot be created', async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        failPageInserts(db);
+
+        await expect(
+            workspaces.getOrCreateDefault('user_a', firstName('Thibaut')),
+        ).rejects.toThrow();
+        expect(await workspaces.list('user_a')).toEqual([]);
     });
 
     it('returns the first-created Workspace when the user has several', async () => {
@@ -198,6 +262,26 @@ describe('create', () => {
         expect(workspace.id).toEqual(expect.any(String));
         expect(await workspaces.get('user_a', workspace.id)).toEqual(workspace);
         expect(countWorkspaces(db, 'user_a')).toBe(1);
+    });
+
+    it('creates it with a single "New page" Page at its root', async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        await workspaces.getOrCreateDefault('user_a', firstName('Thibaut'));
+
+        const workspace = await workspaces.create(
+            'user_a',
+            firstName('Thibaut'),
+        );
+
+        expect(await createPagesModule(db).list('user_a', workspace.id)).toEqual([
+            {
+                id: expect.any(String),
+                workspaceId: workspace.id,
+                parentId: null,
+                title: 'New page',
+            },
+        ]);
     });
 
     it('creates a new Workspace on every call, even when the user has one', async () => {
@@ -286,6 +370,38 @@ describe('create', () => {
         expect(await workspaces.get('user_b', mine.id)).toBeNull();
         expect(await workspaces.list('user_b')).toEqual([theirs]);
         expect(await workspaces.list('user_a')).toEqual([mine]);
+    });
+
+    it('keeps the initial Page away from other users', async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        const pages = createPagesModule(db);
+        const theirs = await workspaces.getOrCreateDefault(
+            'user_b',
+            firstName('Bob'),
+        );
+
+        const mine = await workspaces.create('user_a', firstName('Ada'));
+        const [initial] = (await pages.list('user_a', mine.id))!;
+
+        expect(await pages.list('user_b', mine.id)).toBeNull();
+        expect(await pages.get('user_b', mine.id, initial.id)).toBeNull();
+        expect(await pages.get('user_b', theirs.id, initial.id)).toBeNull();
+    });
+
+    it('creates no Workspace when its initial Page cannot be created', async () => {
+        const db = open();
+        const workspaces = createWorkspacesModule(db);
+        const existing = await workspaces.getOrCreateDefault(
+            'user_a',
+            firstName('Thibaut'),
+        );
+        failPageInserts(db);
+
+        await expect(
+            workspaces.create('user_a', firstName('Thibaut')),
+        ).rejects.toThrow();
+        expect(await workspaces.list('user_a')).toEqual([existing]);
     });
 
     it('leaves getOrCreateDefault returning the first-created Workspace', async () => {

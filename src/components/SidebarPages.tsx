@@ -39,11 +39,7 @@ export default function SidebarPages({
                     value={filter}
                     onChange={(event) => setFilter(event.target.value)}
                 />
-                {pages.length === 0 ? (
-                    <p className="text-sm mt-4 text-text-muted">
-                        No pages yet. Use “Create page” to add the first one.
-                    </p>
-                ) : visiblePages.length === 0 ? (
+                {visiblePages.length === 0 ? (
                     <p className="text-sm mt-4 text-text-muted">No pages found.</p>
                 ) : (
                     <ul className="mt-4 flex flex-col gap-0.5">

@@ -10,7 +10,8 @@ export type Page = {
     title: string;
 };
 
-const DEFAULT_TITLE = 'Untitled';
+/** The Titre par défaut, copied into every Page at its creation */
+export const DEFAULT_PAGE_TITLE = 'New page';
 
 export function createPagesModule(db: Database) {
     const ownsWorkspace = db
@@ -36,7 +37,7 @@ export function createPagesModule(db: Database) {
 
     return {
         /**
-         * Creates an "Untitled" Page at the root of the Workspace.
+         * Creates a "New page" Page at the root of the Workspace.
          * Returns null for a missing Workspace and for someone else's, without distinction.
          */
         async createAtRoot(
@@ -47,7 +48,7 @@ export function createPagesModule(db: Database) {
                 id: randomUUID(),
                 workspaceId,
                 parentId: null,
-                title: DEFAULT_TITLE,
+                title: DEFAULT_PAGE_TITLE,
             };
             const { changes } = insertAtRoot.run(
                 page.id,

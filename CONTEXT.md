@@ -18,8 +18,11 @@ Le premier Workspace d'un utilisateur, créé automatiquement à sa première vi
 Le Workspace affiché à l'écran, identifié par l'URL. Son nom s'affiche en haut de la sidebar.
 
 **Page**:
-Un document identifié, avec un titre, positionné dans l'arbre sous un Workspace ou sous une autre Page.
+Un document identifié, avec un titre, positionné dans l'arbre sous un Workspace ou sous une autre Page. Une Page est renommable, et plusieurs Pages peuvent porter le même titre. Un Workspace contient toujours au moins une Page : sa création s'accompagne de celle d'une Page, et supprimer sa dernière Page en recrée une.
 _Avoid_: Note, document
+
+**Titre par défaut**:
+Le titre que reçoit toute Page à sa création, qu'elle soit créée par l'utilisateur ou automatiquement : « New page ». Une Page renommée avec un titre vide reprend le Titre par défaut.
 
 **Sous-page**:
 Une Page dont le parent est une autre Page.

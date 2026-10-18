@@ -1,16 +1,13 @@
-import { loadCurrentWorkspace } from '@/lib/current-workspace';
-import { Editor } from "@/components/DynamicEditor";
+import { redirect } from 'next/navigation';
+import { loadPages } from '@/lib/current-workspace';
 
 export default async function WorkspacePage({
     params,
 }: PageProps<'/[workspaceId]'>) {
     const { workspaceId } = await params;
     // Layouts don't re-render on navigation, so the page checks access itself
-    await loadCurrentWorkspace(workspaceId);
+    const [oldest] = await loadPages(workspaceId);
 
-    return (
-        <main className="w-4/5" aria-label="Main content">
-            <Editor/>
-        </main>
-    );
+    // A Workspace always has at least one Page: opening it shows its oldest one
+    redirect(`/${workspaceId}/${oldest.id}`);
 }

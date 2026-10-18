@@ -12,17 +12,7 @@ export default function Editor() {
     });
 
     return (
-        <BlockNoteView
-            editor={editor}
-            theme={{
-                borderRadius: 0,
-                colors: {
-                    editor: {
-                        text: "inherit", 
-                        background: "transparent",
-                    },
-                },
-            }}
-        />
+        <p>Pas de page</p>
+        
     );
 }
