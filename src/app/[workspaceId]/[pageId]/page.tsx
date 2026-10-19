@@ -22,6 +22,7 @@ export default async function PageRoute({
             {/* Keyed by Page too, so no Contenu of the previous Page is left in the editor */}
             <Editor
                 key={page.id}
+                pageId={page.id}
                 initialContent={content}
                 saveAction={savePageContent.bind(null, workspaceId, page.id)}
             />

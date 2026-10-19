@@ -187,6 +187,56 @@ describe('order', () => {
     });
 });
 
+describe('save now', () => {
+    it('saves the pending change at once, and the delayed save does not follow', async () => {
+        const { change, saveNow } = scheduler();
+
+        change('a');
+        await wait(DELAY / 2);
+        saveNow();
+
+        expect(contents()).toEqual(['a']);
+        saves[0].resolve();
+        await wait(DELAY * 10);
+        expect(contents()).toEqual(['a']);
+    });
+
+    it('saves nothing without a pending change', async () => {
+        const { change, saveNow } = scheduler();
+
+        saveNow();
+        await wait(DELAY * 10);
+        expect(saves).toEqual([]);
+
+        change('a');
+        await wait(DELAY);
+        saves[0].resolve();
+        await wait(0);
+        saveNow();
+        await wait(DELAY * 10);
+        expect(contents()).toEqual(['a']);
+    });
+
+    it('starts no other save while one is running, and saves the latest Contenu at its end', async () => {
+        const { change, saveNow } = scheduler();
+
+        change('a');
+        await wait(DELAY);
+        change('ab');
+        change('abc');
+        saveNow();
+
+        expect(contents()).toEqual(['a']);
+        saves[0].resolve();
+        await wait(0);
+        expect(contents()).toEqual(['a', 'abc']);
+        saves[1].resolve();
+        await wait(DELAY * 10);
+        expect(contents()).toEqual(['a', 'abc']);
+        expect(maxRunning).toBe(1);
+    });
+});
+
 describe('without a change', () => {
     it('saves nothing', async () => {
         scheduler();
