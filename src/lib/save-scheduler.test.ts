@@ -307,6 +307,108 @@ describe('unsaved', () => {
     });
 });
 
+describe('failure', () => {
+    it('is not failed while saves succeed', async () => {
+        const { change, hasFailed } = scheduler();
+
+        expect(hasFailed()).toBe(false);
+        change('a');
+        await wait(DELAY);
+        saves[0].resolve();
+        await wait(0);
+
+        expect(hasFailed()).toBe(false);
+    });
+
+    it('is failed after a failed save, and notifies it', async () => {
+        const { change, subscribe, hasFailed } = scheduler();
+        const seen: boolean[] = [];
+        subscribe(() => seen.push(hasFailed()));
+
+        change('a');
+        await wait(DELAY);
+        saves[0].reject();
+        await wait(0);
+
+        expect(hasFailed()).toBe(true);
+        expect(seen.at(-1)).toBe(true);
+    });
+
+    it('does not retry a failed save on its own', async () => {
+        const { change, saveNow } = scheduler();
+
+        change('a');
+        await wait(DELAY);
+        saves[0].reject();
+        await wait(DELAY * 10);
+        saveNow();
+        await wait(DELAY * 10);
+
+        expect(contents()).toEqual(['a']);
+    });
+
+    it('is still unsaved after a failed save', async () => {
+        const { change, hasUnsaved } = scheduler();
+
+        change('a');
+        await wait(DELAY);
+        saves[0].reject();
+        await wait(DELAY * 10);
+
+        expect(hasUnsaved()).toBe(true);
+    });
+
+    it('saves again, with the latest Contenu, after the next change', async () => {
+        const { change, hasFailed } = scheduler();
+
+        change('a');
+        await wait(DELAY);
+        saves[0].reject();
+        await wait(0);
+        change('ab');
+        await wait(DELAY);
+
+        expect(contents()).toEqual(['a', 'ab']);
+        expect(hasFailed()).toBe(true);
+    });
+
+    it('is neither failed nor unsaved once a later save succeeds, and notifies it', async () => {
+        const { change, subscribe, hasFailed, hasUnsaved } = scheduler();
+        const seen: boolean[] = [];
+        subscribe(() => seen.push(hasFailed()));
+
+        change('a');
+        await wait(DELAY);
+        saves[0].reject();
+        await wait(0);
+        change('ab');
+        await wait(DELAY);
+        saves[1].resolve();
+        await wait(0);
+
+        expect(hasFailed()).toBe(false);
+        expect(hasUnsaved()).toBe(false);
+        expect(seen.at(-1)).toBe(false);
+    });
+
+    it('clears the failure once the save of the changes made during the failed one succeeds', async () => {
+        const { change, hasFailed, hasUnsaved } = scheduler();
+
+        change('a');
+        await wait(DELAY);
+        change('ab');
+        await wait(DELAY);
+        saves[0].reject();
+        await wait(0);
+
+        expect(hasFailed()).toBe(true);
+        saves[1].resolve();
+        await wait(0);
+        expect(hasFailed()).toBe(false);
+        expect(hasUnsaved()).toBe(false);
+    });
+});
+
 describe('without a change', () => {
     it('saves nothing', async () => {
         scheduler();

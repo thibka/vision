@@ -4,7 +4,7 @@ import type { PartialBlock } from "@blocknote/core";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { PageContent } from "@/lib/pages";
 import { leavePage, pageSaveScheduler } from "@/lib/save-scheduler-registry";
 
@@ -27,21 +27,33 @@ export default function Editor({
             content.length > 0 ? (content as PartialBlock[]) : undefined,
     });
 
+    // Nothing is shown while saves succeed. The text typed stays in the editor after a failure.
+    const hasFailed = useSyncExternalStore(
+        scheduler.subscribe,
+        scheduler.hasFailed,
+    );
+
     useEffect(() => () => leavePage(pageId, scheduler), [pageId, scheduler]);
 
     return (
-        <BlockNoteView
-            editor={editor}
-            onChange={() => scheduler.change(editor.document)}
-            theme={{
-                borderRadius: 0,
-                colors: {
-                    editor: {
-                        text: "inherit",
-                        background: "transparent",
+        <>
+            {/* Always rendered, so screen readers announce the message when it appears */}
+            <p role="status" className="px-12 text-sm text-text-muted">
+                {hasFailed && "Content not saved"}
+            </p>
+            <BlockNoteView
+                editor={editor}
+                onChange={() => scheduler.change(editor.document)}
+                theme={{
+                    borderRadius: 0,
+                    colors: {
+                        editor: {
+                            text: "inherit",
+                            background: "transparent",
+                        },
                     },
-                },
-            }}
-        />
+                }}
+            />
+        </>
     );
 }

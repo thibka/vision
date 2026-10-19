@@ -25,7 +25,8 @@ export function pageSaveScheduler(
 
 /**
  * For the editor leaving a Page: saves what is pending at once, without the navigation waiting
- * for it, and keeps the scheduler until everything is saved.
+ * for it, and keeps the scheduler until everything is saved. A Page whose last save failed is kept
+ * too, so it reopens from the Contenu typed.
  */
 export function leavePage(
     pageId: string,
@@ -45,9 +46,10 @@ export function leavePage(
 }
 
 /**
- * While something is unsaved, whether the Page is open or was left, closing or reloading the tab
- * saves what is pending at once and has the browser warn: it may cut the save short. Listening
- * only then keeps the tab closing normally, and in the back/forward cache, once all is saved.
+ * While something is unsaved, whether the Page is open or was left, and after a failed save until a
+ * later one succeeds, closing or reloading the tab saves what is pending at once and has the
+ * browser warn: it may cut the save short. Listening only then keeps the tab closing normally, and
+ * in the back/forward cache, once all is saved.
  */
 function saveOnUnload(scheduler: SaveScheduler<PageContent>) {
     function onBeforeUnload(event: BeforeUnloadEvent) {

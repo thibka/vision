@@ -16,6 +16,8 @@ export function createSaveScheduler<T>(
     // The delay has passed since the last change, which waits for the running save to end
     let isDue = false;
     let isSaving = false;
+    // The last save failed, and no save has succeeded since
+    let lastSaveFailed = false;
     const listeners = new Set<() => void>();
 
     function notify() {
@@ -28,8 +30,10 @@ export function createSaveScheduler<T>(
         isSaving = true;
         try {
             await save(latest as T);
+            lastSaveFailed = false;
         } catch {
             // Not retried: the next change starts a new save
+            lastSaveFailed = true;
         } finally {
             isSaving = false;
         }
@@ -59,9 +63,14 @@ export function createSaveScheduler<T>(
 
         saveNow,
 
-        /** True while a change waits for its save, or while a save is running */
+        /** True while a change waits for its save, while a save is running, or after a failed one */
         hasUnsaved() {
-            return timer !== undefined || isDue || isSaving;
+            return timer !== undefined || isDue || isSaving || lastSaveFailed;
+        },
+
+        /** True once a save has failed, until a later save succeeds */
+        hasFailed() {
+            return lastSaveFailed;
         },
 
         /** The Contenu of the last change signaled, if any */
@@ -69,7 +78,10 @@ export function createSaveScheduler<T>(
             return latest;
         },
 
-        /** Calls `listener` whenever what `hasUnsaved` says may have changed. Returns the unsubscribe. */
+        /**
+         * Calls `listener` whenever what `hasUnsaved` or `hasFailed` say may have changed. Returns
+         * the unsubscribe.
+         */
         subscribe(listener: () => void) {
             listeners.add(listener);
             return () => {
