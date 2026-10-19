@@ -6,10 +6,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import { useEffect, useState } from "react";
 import type { PageContent } from "@/lib/pages";
-import { createSaveScheduler } from "@/lib/save-scheduler";
-import { keptSaveScheduler, leavePage } from "@/lib/save-scheduler-registry";
-
-const SAVE_DELAY_MS = 1000;
+import { leavePage, pageSaveScheduler } from "@/lib/save-scheduler-registry";
 
 export default function Editor({
     pageId,
@@ -20,13 +17,8 @@ export default function Editor({
     initialContent: PageContent;
     saveAction: (content: PageContent) => Promise<void>;
 }) {
-    // A Page left before its save ended goes on with the same scheduler, so its later changes are
-    // saved after that save, and starts from the latest Contenu typed rather than the server's
-    const [scheduler] = useState(
-        () =>
-            keptSaveScheduler(pageId) ??
-            createSaveScheduler(saveAction, SAVE_DELAY_MS),
-    );
+    const [scheduler] = useState(() => pageSaveScheduler(pageId, saveAction));
+    // A Page left before its save ended starts from the latest Contenu typed
     const content = scheduler.latest() ?? initialContent;
     // An empty Contenu starts an empty editor, which BlockNote can't be given as initial content.
     // The Page title is shown above the editor, not repeated in it.

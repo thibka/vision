@@ -237,6 +237,76 @@ describe('save now', () => {
     });
 });
 
+describe('unsaved', () => {
+    it('is unsaved during the delay', async () => {
+        const { change, hasUnsaved } = scheduler();
+
+        change('a');
+        await wait(DELAY - 1);
+
+        expect(hasUnsaved()).toBe(true);
+    });
+
+    it('is unsaved while a save is running', async () => {
+        const { change, hasUnsaved } = scheduler();
+
+        change('a');
+        await wait(DELAY * 10);
+
+        expect(saves[0].isRunning).toBe(true);
+        expect(hasUnsaved()).toBe(true);
+    });
+
+    it('is unsaved while a save started at once is running', () => {
+        const { change, saveNow, hasUnsaved } = scheduler();
+
+        change('a');
+        saveNow();
+
+        expect(hasUnsaved()).toBe(true);
+    });
+
+    it('is saved once the save has ended', async () => {
+        const { change, hasUnsaved } = scheduler();
+
+        change('a');
+        await wait(DELAY);
+        saves[0].resolve();
+        await wait(0);
+
+        expect(hasUnsaved()).toBe(false);
+    });
+
+    it('is unsaved until the save of the changes made during a save has ended', async () => {
+        const { change, hasUnsaved } = scheduler();
+
+        change('a');
+        await wait(DELAY);
+        change('ab');
+        await wait(DELAY);
+        saves[0].resolve();
+        await wait(0);
+
+        expect(hasUnsaved()).toBe(true);
+        saves[1].resolve();
+        await wait(0);
+        expect(hasUnsaved()).toBe(false);
+    });
+
+    it('notifies when it becomes saved', async () => {
+        const { change, subscribe, hasUnsaved } = scheduler();
+        const seen: boolean[] = [];
+        subscribe(() => seen.push(hasUnsaved()));
+
+        change('a');
+        await wait(DELAY);
+        saves[0].resolve();
+        await wait(0);
+
+        expect(seen.at(-1)).toBe(false);
+    });
+});
+
 describe('without a change', () => {
     it('saves nothing', async () => {
         scheduler();
@@ -244,5 +314,13 @@ describe('without a change', () => {
         await wait(DELAY * 10);
 
         expect(saves).toEqual([]);
+    });
+
+    it('has nothing unsaved', async () => {
+        const { hasUnsaved } = scheduler();
+
+        expect(hasUnsaved()).toBe(false);
+        await wait(DELAY * 10);
+        expect(hasUnsaved()).toBe(false);
     });
 });
