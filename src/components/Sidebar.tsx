@@ -1,8 +1,10 @@
 import Avatar from '@/components/Avatar';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/Tabs';
+import { TabsList, TabsTrigger, TabsContent } from '@/components/Tabs';
+import SidebarTabs from '@/components/SidebarTabs';
 import SidebarPages from '@/components/SidebarPages';
 import SidebarWorkspaces from '@/components/SidebarWorkspaces';
 import { UserButton } from '@clerk/nextjs';
+import type { SidebarTab } from '@/lib/sidebar-tab';
 import type { Page } from '@/lib/pages';
 import type { Workspace } from '@/lib/workspaces';
 
@@ -10,6 +12,7 @@ export default function Sidebar({
     currentWorkspace,
     workspaces,
     pages,
+    initialTab,
     createPageAction,
     deletePageAction,
     createWorkspaceAction,
@@ -18,6 +21,7 @@ export default function Sidebar({
     currentWorkspace: Workspace;
     workspaces: Workspace[];
     pages: Page[];
+    initialTab: SidebarTab;
     createPageAction: () => Promise<void>;
     deletePageAction: (pageId: string, isOpen: boolean) => Promise<void>;
     createWorkspaceAction: () => Promise<void>;
@@ -33,7 +37,7 @@ export default function Sidebar({
                 </div>
             </div>
 
-            <Tabs defaultValue="pages" className="flex flex-col flex-1 min-h-0">
+            <SidebarTabs initialTab={initialTab}>
                 <TabsList className="gap-4 px-4">
                     <TabsTrigger value="workspaces" className="px-0 py-1">
                         Workspaces <span className="text-xs text-text-muted ml-1">{workspaces.length}</span>
@@ -59,7 +63,7 @@ export default function Sidebar({
                         deletePageAction={deletePageAction}
                     />
                 </TabsContent>
-            </Tabs>
+            </SidebarTabs>
         </aside>
     );
 }
