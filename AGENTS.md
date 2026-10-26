@@ -16,7 +16,7 @@ Pas de TDD sur ce projet. Implémente d'abord, puis écris les tests après coup
 
 ### Issue tracker
 
-Issues are local markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+Issues are GitHub issues on `thibka/vision`, managed with the `gh` CLI. Past tickets are archived under `.scratch/`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
