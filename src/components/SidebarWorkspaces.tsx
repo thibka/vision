@@ -64,7 +64,7 @@ export default function SidebarWorkspaces({
                                             focusRing,
                                         )}
                                     >
-                                        <WorkspaceAvatar size="sm">{workspaceIcon(workspace)}</WorkspaceAvatar>
+                                        <WorkspaceAvatar size="sm" icon={workspaceIcon(workspace)} />
                                         <span className="truncate min-w-0">{workspace.name}</span>
                                     </Link>
                                 </li>

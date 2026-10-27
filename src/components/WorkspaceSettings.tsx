@@ -71,7 +71,7 @@ function SettingsForm({
                         onClick={() => setIsPickerOpen((open) => !open)}
                         className={cx('rounded-md', focusRing)}
                     >
-                        <WorkspaceAvatar>{workspaceIcon({ name, icon })}</WorkspaceAvatar>
+                        <WorkspaceAvatar icon={workspaceIcon({ name, icon })} />
                     </button>
                     {icon !== null && (
                         <Button
@@ -203,11 +203,11 @@ export default function WorkspaceSettings({
             <Dialog.Trigger
                 aria-label="Workspace settings"
                 className={cx(
-                    'flex min-w-0 items-center gap-2 rounded-md -mx-1 px-1 py-1 text-left hover:bg-bg-hover',
+                    'flex min-w-0 w-full items-center gap-2 rounded-md -mx-1 px-1 py-1 text-left hover:bg-bg-hover',
                     focusRing,
                 )}
             >
-                <WorkspaceAvatar>{workspaceIcon(workspace)}</WorkspaceAvatar>
+                <WorkspaceAvatar icon={workspaceIcon(workspace)} />
                 <span className="text-sm font-semibold truncate min-w-0">{workspace.name}</span>
             </Dialog.Trigger>
             <Dialog.Portal>
