@@ -17,6 +17,10 @@ Le premier Workspace d'un utilisateur, créé automatiquement à sa première vi
 **Workspace courant**:
 Le Workspace affiché à l'écran, identifié par l'URL. Son nom s'affiche en haut de la sidebar.
 
+**Icône**:
+Ce qui s'affiche dans l'avatar d'un Workspace, dans la sidebar et dans la liste des Workspaces. Par défaut, l'initiale de son nom, qui suit donc ses renommages ; si le nom commence par un emoji, cet emoji. L'utilisateur peut aussi choisir un emoji, qui remplace alors ce défaut jusqu'à ce qu'il revienne à l'Icône par défaut.
+_Avoid_: Logo, image
+
 **Page**:
 Un document identifié, avec un titre, positionné dans l'arbre sous un Workspace ou sous une autre Page. Une Page est renommable, et plusieurs Pages peuvent porter le même titre. Un Workspace contient toujours au moins une Page : sa création s'accompagne de celle d'une Page, et supprimer sa dernière Page en recrée une.
 _Avoid_: Note, document

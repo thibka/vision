@@ -12,6 +12,7 @@ import {
     createWorkspace,
     deletePage,
     deleteWorkspace,
+    updateWorkspace,
 } from './actions';
 
 export default async function WorkspaceLayout({
@@ -35,7 +36,8 @@ export default async function WorkspaceLayout({
                     createPageAction={createPage.bind(null, currentWorkspace.id)}
                     deletePageAction={deletePage.bind(null, currentWorkspace.id)}
                     createWorkspaceAction={createWorkspace}
-                    deleteWorkspaceAction={deleteWorkspace}
+                    updateWorkspaceAction={updateWorkspace.bind(null, currentWorkspace.id)}
+                    deleteWorkspaceAction={deleteWorkspace.bind(null, currentWorkspace.id)}
                 />
                 {children}
             </div>

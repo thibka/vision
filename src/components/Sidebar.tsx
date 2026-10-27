@@ -1,4 +1,4 @@
-import Avatar from '@/components/Avatar';
+import WorkspaceSettings from '@/components/WorkspaceSettings';
 import { TabsList, TabsTrigger, TabsContent } from '@/components/Tabs';
 import SidebarTabs from '@/components/SidebarTabs';
 import SidebarPages from '@/components/SidebarPages';
@@ -16,6 +16,7 @@ export default function Sidebar({
     createPageAction,
     deletePageAction,
     createWorkspaceAction,
+    updateWorkspaceAction,
     deleteWorkspaceAction,
 }: {
     currentWorkspace: Workspace;
@@ -25,13 +26,19 @@ export default function Sidebar({
     createPageAction: () => Promise<void>;
     deletePageAction: (pageId: string, isOpen: boolean) => Promise<void>;
     createWorkspaceAction: () => Promise<void>;
-    deleteWorkspaceAction: (workspaceId: string, isCurrent: boolean) => Promise<void>;
+    updateWorkspaceAction: (name: string, icon: string | null) => Promise<void>;
+    deleteWorkspaceAction: () => Promise<void>;
 }) {
     return (
         <aside aria-label="Sidebar" className="flex flex-col w-65 h-full border-r border-sidebar-border bg-sidebar-bg">
             <div className="flex items-center gap-2 mb-4 mt-4 px-4">
-                <Avatar>{currentWorkspace.name.charAt(0).toUpperCase()}</Avatar>
-                <span className="text-sm font-semibold truncate min-w-0">{currentWorkspace.name}</span>
+                <WorkspaceSettings
+                    workspace={currentWorkspace}
+                    pageCount={pages.length}
+                    canDelete={workspaces.length > 1}
+                    updateAction={updateWorkspaceAction}
+                    deleteAction={deleteWorkspaceAction}
+                />
                 <div className="ml-auto flex items-center">
                     <UserButton />
                 </div>
@@ -52,7 +59,6 @@ export default function Sidebar({
                         workspaces={workspaces}
                         currentWorkspaceId={currentWorkspace.id}
                         createWorkspaceAction={createWorkspaceAction}
-                        deleteWorkspaceAction={deleteWorkspaceAction}
                     />
                 </TabsContent>
                 {/* Pages tab */}

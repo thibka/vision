@@ -5,7 +5,7 @@ import type { Database } from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDatabase } from './db';
 import { createPagesModule } from './pages';
-import { createWorkspacesModule } from './workspaces';
+import { createWorkspacesModule, type Workspace } from './workspaces';
 
 let dir: string;
 let file: string;
@@ -38,11 +38,11 @@ function insertWorkspace(
     userId: string,
     workspace: { id: string; name: string },
     createdAt: string,
-) {
+): Workspace {
     db.prepare(
         'INSERT INTO workspaces (id, user_id, name, created_at) VALUES (?, ?, ?, ?)',
     ).run(workspace.id, userId, workspace.name, createdAt);
-    return workspace;
+    return { ...workspace, icon: null };
 }
 
 // Inserts a Sous-page directly: the Pages module can't create one yet
@@ -256,6 +256,19 @@ describe('getOrCreateDefault', () => {
             await workspaces.getOrCreateDefault('user_a', firstName('Thibaut')),
         ).toEqual(older);
         expect(countWorkspaces(db, 'user_a')).toBe(2);
+    });
+});
+
+describe('Nom par défaut length', () => {
+    it('is cut to 50 characters for a long first name', async () => {
+        const workspaces = createWorkspacesModule(open());
+
+        const workspace = await workspaces.create(
+            'user_a',
+            firstName('Z'.repeat(80)),
+        );
+
+        expect([...workspace.name]).toHaveLength(50);
     });
 });
 
@@ -637,6 +650,101 @@ describe('delete', () => {
         ).toEqual(second);
         expect(loadFirstName).not.toHaveBeenCalled();
         expect(countWorkspaces(db, 'user_a')).toBe(2);
+    });
+});
+
+describe('update', () => {
+    it('renames the Workspace and sets its icon, trimming the name', async () => {
+        const workspaces = createWorkspacesModule(open());
+        const workspace = await workspaces.create('user_a', firstName('Thibaut'));
+
+        const updated = await workspaces.update('user_a', workspace.id, {
+            name: '  Recettes  ',
+            icon: '🍳',
+        });
+
+        expect(updated).toEqual({ id: workspace.id, name: 'Recettes', icon: '🍳' });
+        expect(await workspaces.get('user_a', workspace.id)).toEqual(updated);
+    });
+
+    it('goes back to the derived Icône when the icon is null', async () => {
+        const workspaces = createWorkspacesModule(open());
+        const workspace = await workspaces.create('user_a', firstName('Thibaut'));
+        await workspaces.update('user_a', workspace.id, { name: 'A', icon: '🍳' });
+
+        const updated = await workspaces.update('user_a', workspace.id, {
+            name: 'A',
+            icon: null,
+        });
+
+        expect(updated?.icon).toBeNull();
+    });
+
+    it('accepts an emoji made of several code points', async () => {
+        const workspaces = createWorkspacesModule(open());
+        const workspace = await workspaces.create('user_a', firstName('Thibaut'));
+
+        for (const icon of ['👨‍👩‍👧', '🇫🇷', '👍🏽']) {
+            const updated = await workspaces.update('user_a', workspace.id, {
+                name: 'A',
+                icon,
+            });
+            expect(updated?.icon).toBe(icon);
+        }
+    });
+
+    it('refuses an empty name', async () => {
+        const workspaces = createWorkspacesModule(open());
+        const workspace = await workspaces.create('user_a', firstName('Thibaut'));
+
+        await expect(
+            workspaces.update('user_a', workspace.id, { name: '   ', icon: null }),
+        ).rejects.toThrow();
+        expect((await workspaces.get('user_a', workspace.id))?.name).toBe(
+            "Thibaut's workspace",
+        );
+    });
+
+    it('accepts a name of 50 characters and refuses one of 51', async () => {
+        const workspaces = createWorkspacesModule(open());
+        const workspace = await workspaces.create('user_a', firstName('Thibaut'));
+
+        const ok = await workspaces.update('user_a', workspace.id, {
+            name: '🍳'.repeat(50),
+            icon: null,
+        });
+        expect(ok?.name).toBe('🍳'.repeat(50));
+        await expect(
+            workspaces.update('user_a', workspace.id, {
+                name: 'a'.repeat(51),
+                icon: null,
+            }),
+        ).rejects.toThrow();
+    });
+
+    it('refuses an icon that is not exactly one emoji', async () => {
+        const workspaces = createWorkspacesModule(open());
+        const workspace = await workspaces.create('user_a', firstName('Thibaut'));
+
+        for (const icon of ['', 'a', '2', '#', '🍳🍳', '🍳 ', 'ab🍳']) {
+            await expect(
+                workspaces.update('user_a', workspace.id, { name: 'A', icon }),
+            ).rejects.toThrow();
+        }
+        expect((await workspaces.get('user_a', workspace.id))?.icon).toBeNull();
+    });
+
+    it('returns null for a missing Workspace and for someone else\'s, changing nothing', async () => {
+        const workspaces = createWorkspacesModule(open());
+        const mine = await workspaces.create('user_a', firstName('A'));
+
+        expect(
+            await workspaces.update('user_a', 'missing', { name: 'X', icon: null }),
+        ).toBeNull();
+        expect(
+            await workspaces.update('user_b', mine.id, { name: 'X', icon: null }),
+        ).toBeNull();
+        expect(await workspaces.get('user_a', mine.id)).toEqual(mine);
     });
 });
 

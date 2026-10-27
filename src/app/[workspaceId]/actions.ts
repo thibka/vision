@@ -76,8 +76,26 @@ export async function createWorkspace() {
     redirect(`/${workspace.id}`);
 }
 
-// `isCurrent` comes from the client, but it only decides where to land: the delete still checks access
-export async function deleteWorkspace(workspaceId: string, isCurrent: boolean) {
+// The name and the icon come from the client as is: the Workspaces module refuses an empty or too long name
+// and anything but one emoji
+export async function updateWorkspace(
+    workspaceId: string,
+    name: string,
+    icon: string | null,
+) {
+    const { userId } = await auth.protect();
+    const workspace = await workspaces().update(userId, workspaceId, {
+        name,
+        icon,
+    });
+    if (!workspace) notFound();
+
+    // The sidebar lives in the layout, which a navigation alone would not re-render
+    revalidatePath('/[workspaceId]', 'layout');
+}
+
+// Only the Workspace courant can be deleted, from its settings: the user always lands on the home route
+export async function deleteWorkspace(workspaceId: string) {
     const { userId } = await auth.protect();
     // False for a Workspace already deleted, e.g. from another tab, or for the last one: nothing to do
     await workspaces().delete(userId, workspaceId);
@@ -85,5 +103,5 @@ export async function deleteWorkspace(workspaceId: string, isCurrent: boolean) {
     // The sidebar lives in the layout, which a navigation alone would not re-render
     revalidatePath('/[workspaceId]', 'layout');
     // The home route leads to the oldest Workspace left, then to its oldest Page
-    if (isCurrent) redirect('/');
+    redirect('/');
 }

@@ -2,28 +2,39 @@ import type { Database } from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { getDatabase } from './db';
 import { DEFAULT_PAGE_TITLE } from './page-title';
+import {
+    MAX_WORKSPACE_NAME_LENGTH,
+    isEmoji,
+    truncateWorkspaceName,
+    workspaceNameLength,
+} from './workspace-name';
 
 export type Workspace = {
     id: string;
     name: string;
+    /** The emoji picked by the user, null while the Icône is derived from the name */
+    icon: string | null;
 };
 
 type FirstNameLoader = () => Promise<string | null | undefined>;
 
 function defaultWorkspaceName(firstName: string | null | undefined) {
     const trimmed = firstName?.trim();
-    return trimmed ? `${trimmed}'s workspace` : 'My workspace';
+    // A long first name must not push the Nom par défaut past the limit of a name
+    return truncateWorkspaceName(
+        trimmed ? `${trimmed}'s workspace` : 'My workspace',
+    );
 }
 
 export function createWorkspacesModule(db: Database) {
     const selectFirst = db.prepare<[string], Workspace>(
-        'SELECT id, name FROM workspaces WHERE user_id = ? ORDER BY created_at, rowid LIMIT 1',
+        'SELECT id, name, icon FROM workspaces WHERE user_id = ? ORDER BY created_at, rowid LIMIT 1',
     );
     const selectAll = db.prepare<[string], Workspace>(
-        'SELECT id, name FROM workspaces WHERE user_id = ? ORDER BY created_at, rowid',
+        'SELECT id, name, icon FROM workspaces WHERE user_id = ? ORDER BY created_at, rowid',
     );
     const selectOwned = db.prepare<[string, string], Workspace>(
-        'SELECT id, name FROM workspaces WHERE user_id = ? AND id = ?',
+        'SELECT id, name, icon FROM workspaces WHERE user_id = ? AND id = ?',
     );
     const insert = db.prepare(
         'INSERT INTO workspaces (id, user_id, name, created_at) VALUES (?, ?, ?, ?)',
@@ -38,6 +49,9 @@ export function createWorkspacesModule(db: Database) {
             number
         >('SELECT 1 FROM workspaces WHERE user_id = ? AND id <> ? LIMIT 1')
         .pluck();
+    const updateOwned = db.prepare(
+        'UPDATE workspaces SET name = ?, icon = ? WHERE id = ? AND user_id = ?',
+    );
     // One statement: the parent_id foreign key of Sous-pages is checked at its end, whatever the row order
     const deletePages = db.prepare('DELETE FROM pages WHERE workspace_id = ?');
     const deleteOwned = db.prepare(
@@ -47,7 +61,7 @@ export function createWorkspacesModule(db: Database) {
     // A Workspace always has at least one Page: it is created with one, in the same transaction
     const insertWorkspaceWithPage = db.transaction(
         (userId: string, name: string): Workspace => {
-            const workspace = { id: randomUUID(), name };
+            const workspace = { id: randomUUID(), name, icon: null };
             const createdAt = new Date().toISOString();
             insert.run(workspace.id, userId, workspace.name, createdAt);
             insertInitialPage.run(
@@ -119,6 +133,40 @@ export function createWorkspacesModule(db: Database) {
             userId: string,
             workspaceId: string,
         ): Promise<Workspace | null> {
+            return selectOwned.get(userId, workspaceId) ?? null;
+        },
+
+        /**
+         * Sets the name and the picked emoji of the Workspace together; a null `icon` goes back to the
+         * Icône derived from the name. Returns null for a missing Workspace and for someone else's,
+         * without distinction.
+         * Throws when the trimmed name is empty or longer than `MAX_WORKSPACE_NAME_LENGTH` characters,
+         * or when `icon` is not exactly one emoji.
+         */
+        async update(
+            userId: string,
+            workspaceId: string,
+            { name, icon }: { name: string; icon: string | null },
+        ): Promise<Workspace | null> {
+            const trimmed = name.trim();
+            if (!trimmed) {
+                throw new Error('A Workspace name cannot be empty');
+            }
+            if (workspaceNameLength(trimmed) > MAX_WORKSPACE_NAME_LENGTH) {
+                throw new Error(
+                    `A Workspace name cannot be longer than ${MAX_WORKSPACE_NAME_LENGTH} characters`,
+                );
+            }
+            if (icon !== null && !isEmoji(icon)) {
+                throw new Error('A Workspace icon must be exactly one emoji');
+            }
+            const { changes } = updateOwned.run(
+                trimmed,
+                icon,
+                workspaceId,
+                userId,
+            );
+            if (changes === 0) return null;
             return selectOwned.get(userId, workspaceId) ?? null;
         },
 
