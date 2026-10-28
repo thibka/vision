@@ -102,7 +102,7 @@ export default function PageTitle({
                 onBlur={save}
                 className={cx(
                     'block w-full resize-none overflow-hidden field-sizing-content bg-transparent',
-                    'text-4xl font-bold outline-hidden',
+                    'text-6xl font-bold outline-hidden leading-[1.1]',
                 )}
             />
         </h1>

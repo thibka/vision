@@ -12,20 +12,22 @@ export default async function PageRoute({
 
     return (
         <main className="w-4/5" aria-label="Main content">
-            {/* Keyed by Page, so the title field starts afresh on each Page */}
-            <PageTitle
-                key={page.id}
-                pageId={page.id}
-                title={page.title}
-                renameAction={renamePage.bind(null, workspaceId, page.id)}
-            />
-            {/* Keyed by Page too, so no Contenu of the previous Page is left in the editor */}
-            <Editor
-                key={page.id}
-                pageId={page.id}
-                initialContent={content}
-                saveAction={savePageContent.bind(null, workspaceId, page.id)}
-            />
+            <div className="mx-auto max-w-[750px] mt-12">
+                {/* Keyed by Page, so the title field starts afresh on each Page */}
+                <PageTitle
+                    key={page.id}
+                    pageId={page.id}
+                    title={page.title}
+                    renameAction={renamePage.bind(null, workspaceId, page.id)}
+                />
+                {/* Keyed by Page too, so no Contenu of the previous Page is left in the editor */}
+                <Editor
+                    key={page.id}
+                    pageId={page.id}
+                    initialContent={content}
+                    saveAction={savePageContent.bind(null, workspaceId, page.id)}
+                />
+            </div>
         </main>
     );
 }
